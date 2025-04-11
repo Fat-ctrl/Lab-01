@@ -1,33 +1,43 @@
 from metaflow import FlowSpec, step, card, environment, Parameter, current, resources
-import numpy as np
 import pandas as pd
 import os
 from datetime import datetime
 
-# For MLflow
-from sklearn.model_selection import train_test_split
+# Sklearn imports
+from sklearn.model_selection import train_test_split, cross_val_score, KFold
 from sklearn.metrics import accuracy_score
-from sklearn.ensemble import VotingClassifier
+
+# Sklearn models
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
-from sklearn import datasets
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import SGDClassifier
+# from sklearn.neural_network import MLPClassifier
+from sklearn.svm import SVC, LinearSVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.ensemble import BaggingClassifier
+from xgboost import XGBClassifier
+# from sklearn.ensemble import VotingClassifier
+
+
+# Sklearn hyperopt
+from hpsklearn import *
+# from hyperopt import hp, STATUS_OK, Trials, fmin
+from hyperopt import  tpe
+
+# MLflow
 import mlflow
 from mlflow.models import infer_signature
-from sklearn.model_selection import cross_val_score, KFold
 from mlflow.data.pandas_dataset import PandasDataset
 
 # For drawing plot
-import seaborn as sns
 import matplotlib.pyplot as plt
 plt.style.use("ggplot")  #using style ggplot
-import plotly.graph_objects as go
-import plotly.express as px
 from metaflow.cards import VegaChart
 from metaflow.cards import Markdown
-
-# hyperparameters
-from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 
 class MLFlowPipeline(FlowSpec):
     """MLflow pipeline for training and evaluating wine quality models.
@@ -60,7 +70,6 @@ class MLFlowPipeline(FlowSpec):
         help="Whether to use hyperparameter optimization or default parameters.",
     )
     
-    @card
     @environment(
         vars={
             "MLFLOW_TRACKING_URI": os.getenv(
@@ -76,6 +85,7 @@ class MLFlowPipeline(FlowSpec):
     )
         
     @card
+    @resources(cpu=8, memory=4000)
     @step
     def start(self):
         '''
@@ -83,41 +93,30 @@ class MLFlowPipeline(FlowSpec):
         '''
         if not isinstance(self.DATA_DIR, str) or not isinstance(self.DATASET_URL, str):
             raise TypeError("DATA_DIR and DATASET_URL must be strings")
-        
+
         # Set MLflow tracking URI
         mlflow.set_tracking_uri("http://127.0.0.1:5000")
-        
-        # Define model configurations with hyperparameter search spaces
+
+        # Define model configurations
         self.model_configs = [
-            {
-                'name': 'dt',
-                'model': DecisionTreeClassifier,
-                'space': {
-                    'max_depth': hp.choice('dt_max_depth', range(1, 20)),
-                    'min_samples_split': hp.choice('dt_min_samples_split', range(2, 10)),
-                    'min_samples_leaf': hp.choice('dt_min_samples_leaf', range(1, 5))
-                }
-            },
-            {
-                'name': 'knn',
-                'model': KNeighborsClassifier,
-                'space': {
-                    'n_neighbors': hp.choice('knn_n_neighbors', range(1, 20)),
-                    'weights': hp.choice('knn_weights', ['uniform', 'distance']),
-                    'p': hp.choice('knn_p', [1, 2])
-                }
-            },
-            {
-                'name': 'svc',
-                'model': SVC,
-                'space': {
-                    'C': hp.loguniform('svc_C', np.log(0.01), np.log(100)),
-                    'gamma': hp.loguniform('svc_gamma', np.log(0.0001), np.log(1)),
-                    'kernel': hp.choice('svc_kernel', ['rbf', 'linear']),
-                    'probability': True
-                }
-            }
+            {'name': model_name, 'model': model_class} 
+            for model_name, model_class in {
+                'dt': DecisionTreeClassifier,
+                'rf': RandomForestClassifier,
+                'ada': AdaBoostClassifier,
+                'et': ExtraTreesClassifier,
+                'bag': BaggingClassifier,
+                'knn': KNeighborsClassifier,
+                'xgb': XGBClassifier,
+                # 'gb': GradientBoostingClassifier,
+                # 'gnb': GaussianNB,
+                'sgd': SGDClassifier,
+                # 'mlp': MLPClassifier,
+                # 'svc': SVC,
+                'lsvc': LinearSVC,
+            }.items()
         ]
+
         self.next(self.load_dataset)
         
         
@@ -139,12 +138,14 @@ class MLFlowPipeline(FlowSpec):
             
             # Log dataset information with MLflow
             with mlflow.start_run(run_name="dataset_loading") as run:
+                # pylint: disable=no-member
                 dataset = mlflow.data.from_pandas( 
                     self.df, 
                     source=self.DATASET_URL, 
                     name="wine quality - white", 
                     targets="quality"
-                )
+                ) 
+                
                 mlflow.log_input(
                     dataset=dataset,
                     context="training",
@@ -194,12 +195,13 @@ class MLFlowPipeline(FlowSpec):
         
         # Log downloaded dataset information with MLflow
         with mlflow.start_run(run_name="dataset_loading") as run:
+            # pylint: disable=no-member
             dataset = mlflow.data.from_pandas( 
                 self.df, 
                 source=self.DATASET_URL, 
                 name="wine quality - white", 
                 targets="quality"
-            )
+            ) 
             
             mlflow.log_input(
                 dataset=dataset,
@@ -324,7 +326,7 @@ class MLFlowPipeline(FlowSpec):
                         "data": {"values": self.df.to_dict(orient="records")},
                         "mark": "line",
                         "encoding": {
-                            "x": {"field": "quality", "type": "nominal"},
+                        "x": {"field": "quality", "type": "nominal"},
                             "y": {
                                 "field": sulfur_type,
                                 "type": "quantitative",
@@ -380,187 +382,216 @@ class MLFlowPipeline(FlowSpec):
         self.next(self.train_models, foreach='model_configs')
 
     @card
-    @resources(cpu=8, memory=4000)  # 2 CPU cores, 4GB memory
+    @resources(cpu=8, memory=4000)
     @step
     def train_models(self):
         '''
-        Do parallel training of models using MLflow with optional hyperparameter optimization.
+        Train models using either HyperoptEstimator or default scikit-learn models.
         '''
+        import time
         self.trained_models = []
         model_config = self.input
-        
-        # Define cross-validation strategy
-        cv = KFold(n_splits=5, shuffle=True, random_state=42)
-        
-        # Start MLflow run for individual model
-        with mlflow.start_run(run_name=f"model_{model_config['name']}") as run:
-            try:
-                if self.USE_HYPEROPT:
-                    # Hyperparameter optimization code
-                    def objective(params):
-                        try:
-                            if model_config['name'] == 'svc':
-                                params['probability'] = True
-                            model = model_config['model'](**params)
-                            cv_scores = cross_val_score(
-                                model, self.X_train, self.y_train, 
-                                cv=cv, scoring='accuracy'
-                            )
-                            return {'loss': -cv_scores.mean(), 'status': STATUS_OK}
-                        except Exception as e:
-                            print(f"Error in objective function: {e}")
-                            return {'loss': float('inf'), 'status': STATUS_OK}
+        model_name = model_config['name']
 
-                    # Run optimization
-                    trials = Trials()
-                    best = fmin(
-                        fn=objective,
-                        space=model_config['space'],
+        # Add label encoding for hyperopt
+        from sklearn.preprocessing import LabelEncoder
+        label_encoder = LabelEncoder()
+        y_train_encoded = label_encoder.fit_transform(self.y_train)
+        y_val_encoded = label_encoder.transform(self.y_val)
+
+        # Map model names to their hpsklearn and default configurations
+        model_mappings = {
+            # Training Time: 8.49 seconds
+            'dt': {
+                'hp_model': lambda: decision_tree_classifier('dt_classifier'),
+                'criterion': 'log_loss',
+                'default_params': {'max_depth': 5, 'min_samples_split': 2, 'min_samples_leaf': 1}
+            },
+            # Training Time: 425.55 seconds
+            'rf': {
+                'hp_model': lambda: random_forest_classifier('rf_classifier'),
+                'criterion': 'log_loss',
+                'default_params': {'n_estimators': 100, 'max_depth': 10, 'min_samples_split': 2}
+            },
+            # Training Time: 111.14 seconds
+            'ada': {
+                'hp_model': lambda: ada_boost_classifier('ada_classifier'),
+                'default_params': {'n_estimators': 50, 'learning_rate': 1.0}
+            },
+            # Training Time: 178.22 seconds
+            'et': {
+                'hp_model': lambda: extra_trees_classifier('et_classifier'),
+                'default_params': {'n_estimators': 100, 'max_depth': 10}
+            },
+            # Training Time: 41.07 seconds
+            'bag': {
+                'hp_model': lambda: bagging_classifier('bag_classifier'),
+                'default_params': {'n_estimators': 10}
+            },
+            # Training Time: 33.31 seconds
+            'knn': {
+                'hp_model': lambda: k_neighbors_classifier('knn_classifier'),
+                'default_params': {'n_neighbors': 5, 'weights': 'uniform'}
+            },
+            # Training Time: 693.22 seconds
+            'xgb': {
+                'hp_model': lambda: xgboost_classification('xgb_classifier'),
+                'default_params': {
+                    'n_estimators': 100,
+                    'learning_rate': 0.1,
+                    'max_depth': 3,
+                    'gamma': 0
+                }
+            },
+            # # Buggy models
+            # 'gb': {
+            #     'hp_model': lambda: gradient_boosting_classifier('gb_classifier'),
+            #     'criterion': 'log_loss',
+            #     'default_params': {'n_estimators': 100, 'learning_rate': 0.1, 'max_depth': 3}
+            # },
+            # Training Time: 4.51 seconds
+            # 'gnb': {
+            #     'hp_model': lambda: gaussian_nb('gnb_classifier'),
+            #     'default_params': {}
+            # },
+            # Training Time: 21.67 seconds
+            'sgd': {
+                'hp_model': lambda: sgd_classifier('sgd_classifier'),
+                'default_params': {'loss': 'hinge', 'penalty': 'l2', 'alpha': 0.0001}
+            },
+            # 'mlp': {
+            #     'hp_model': lambda: mlp_classifier('mlp_classifier'),
+            #     'default_params': {'hidden_layer_sizes': (100,), 'activation': 'relu'}
+            # },
+            # Training Time: 909.88 seconds
+            # 'svc': {
+            #     'hp_model': lambda: svc('svc_classifier'),
+            #     'default_params': {'C': 1.0, 'kernel': 'rbf', 'gamma': 'scale', 'probability': True}
+            # },
+            # Training Time: 260.15 seconds
+            'lsvc': {
+                'hp_model': lambda: linear_svc('lsvc_classifier'),
+                'default_params': {'C': 1.0, 'loss': 'squared_hinge'}
+            },
+        }
+
+        with mlflow.start_run(run_name=f"model_{model_name}") as run:
+            try:
+                start_time = time.time()
+                
+                if self.USE_HYPEROPT and model_name in model_mappings:
+                    print(f"[{model_name}] Using HyperoptEstimator...")
+                    estimator = HyperoptEstimator(
+                        classifier=model_mappings[model_name]['hp_model'](),
+                        preprocessing=any_preprocessing('pre'),
                         algo=tpe.suggest,
                         max_evals=50,
-                        trials=trials,
-                        show_progressbar=True
+                        trial_timeout=300,
+                        seed=42
                     )
-
-                    # Map hyperparameters
-                    space = model_config['space']
-                    best_params = {}
-                    for param_name, param_value in best.items():
-                        if hasattr(space[param_name], 'choices'):
-                            best_params[param_name] = space[param_name].choices[param_value]
-                        else:
-                            best_params[param_name] = param_value
-
-                    # Log optimization results
-                    trials_data = pd.DataFrame({
-                        'Trial': range(1, len(trials.trials) + 1),
-                        'Accuracy': [-t['result']['loss'] for t in trials.trials if 'loss' in t['result']]
-                    })
+                    # Use encoded labels for training
+                    model = estimator
                     
-                    current.card.append(
-                        VegaChart({
-                            "data": {"values": trials_data.to_dict(orient="records")},
-                            "mark": "line",
-                            "encoding": {
-                                "x": {"field": "Trial", "type": "quantitative"},
-                                "y": {"field": "Accuracy", "type": "quantitative"}
-                            },
-                            "title": f"Hyperparameter Optimization History for {model_config['name']}"
-                        })
-                    )
+                    model.fit(self.X_train, y_train_encoded)
+                    y_pred_encoded = model.predict(self.X_val)
+                    
+                    # Transform predictions back to original labels
+                    y_pred = label_encoder.inverse_transform(y_pred_encoded)
+                    
                 else:
-                    # Use default parameters
-                    best_params = {
-                        'dt': {'max_depth': 5, 'min_samples_split': 2, 'min_samples_leaf': 1},
-                        'knn': {'n_neighbors': 5, 'weights': 'uniform', 'p': 2},
-                        'svc': {'C': 1.0, 'gamma': 'scale', 'kernel': 'rbf', 'probability': True}
-                    }[model_config['name']]
+                    print(f"[{model_name}] Using default parameters...")
+                    params = model_mappings[model_name]['default_params']
+                    model = model_config['model'](**params)
+                    
+                    model.fit(self.X_train, y_train_encoded)
+                    y_pred_encoded = model.predict(self.X_val)
+                    
+                    y_pred = label_encoder.inverse_transform(y_pred_encoded)
 
-                # Ensure probability=True for SVC
-                if model_config['name'] == 'svc':
-                    best_params['probability'] = True
+                # Calculate training time
+                training_time = time.time() - start_time
+                print(f"[{model_name}] Training completed in {training_time:.2f} seconds")
 
-                # Train final model
-                final_model = model_config['model'](**best_params)
-                mlflow.log_params(best_params)
-                
-                # Evaluate model
-                cv_scores = cross_val_score(
-                    final_model, self.X_train, self.y_train, 
-                    cv=cv, scoring='accuracy'
-                )
-                
-                final_model.fit(self.X_train, self.y_train)
-                y_pred = final_model.predict(self.X_val)
                 val_acc = accuracy_score(self.y_val, y_pred)
-                
-                # Log metrics
-                mlflow.log_metrics({
-                    "cv_mean_accuracy": cv_scores.mean(),
-                    "cv_std_accuracy": cv_scores.std(),
-                    "validation_accuracy": val_acc
+
+                # Log metrics including training time
+                mlflow.log_params({
+                    "method": "HyperoptEstimator" if self.USE_HYPEROPT else "default_parameters",
+                    **model_mappings[model_name]['default_params']
                 })
-                
-                # Add summary to card
+                if self.USE_HYPEROPT:
+                    mlflow.log_params({
+                        "label_mapping": str(dict(zip(
+                            label_encoder.classes_,
+                            label_encoder.transform(label_encoder.classes_)
+                        )))
+                    })
+                mlflow.log_metrics({
+                    "validation_accuracy": val_acc,
+                    "training_time_seconds": training_time
+                })
+
+                # Add to card with timing information
                 current.card.append(Markdown(
-                    f"## Model: {model_config['name']}\n" +
-                    f"* Hyperparameter Optimization: {'Enabled' if self.USE_HYPEROPT else 'Disabled'}\n" +
-                    f"* Parameters: {best_params}\n" +
-                    f"* Mean CV Accuracy: {cv_scores.mean():.4f} ± {cv_scores.std():.4f}\n" +
+                    f"## Model: {model_name}\n" +
+                    f"* Method: {'HyperoptEstimator' if self.USE_HYPEROPT else 'Default Parameters'}\n" +
+                    f"* Parameters: {model_mappings[model_name]['default_params']}\n" +
+                    f"* Training Time: {training_time:.2f} seconds\n" +
                     f"* Validation Accuracy: {val_acc:.4f}\n"
                 ))
-                
-                self.trained_models.append((model_config['name'], final_model, val_acc))
-                
+
+                self.trained_models.append((model_name, model, val_acc, training_time))
+
             except Exception as e:
-                print(f"Error in model training: {e}")
+                print(f"[{model_name}] Error in training: {e}")
                 raise
-            
+
         self.next(self.join)
 
+        
     @card    
     @resources(cpu=8, memory=4000)  
     @step
     def join(self, inputs):
         '''
-        Join the results of the parallel training steps.
+        Compare model performances and select the best model.
         '''
+        # Collect all models and their metrics
         self.trained_models = [input.trained_models for input in inputs]
         self.trained_models = [item for sublist in self.trained_models for item in sublist]  # Flatten the list
-        # Ensure variables are passed to the next step
-        self.X_train = inputs[0].X_train  # Assuming all steps have the same data
-        self.X_val = inputs[0].X_val
-        self.y_train = inputs[0].y_train
-        self.y_val = inputs[0].y_val
-        self.next(self.ensemble)
-
-    @card
-    @resources(cpu=8, memory=8000)  
-    @step
-    def ensemble(self):
-        '''
-        Train an ensemble model using the trained models.
-        '''
-        # Start MLflow run for ensemble model
-        with mlflow.start_run(run_name="ensemble_model") as run:
-            voting_clf = VotingClassifier(
-                estimators=[(name, model) for name, model, _ in self.trained_models],
-                voting='soft'
-            )
-            
-            # Train and evaluate ensemble
-            voting_clf.fit(self.X_train, self.y_train)
-            y_pred = voting_clf.predict(self.X_val)
-            final_accuracy = accuracy_score(self.y_val, y_pred)
-            
-            # Log ensemble metrics
-            mlflow.log_metric("ensemble_accuracy", final_accuracy)
-            
-            # Infer model signature for ensemble
-            signature = infer_signature(self.X_train, y_pred)
-            
-            # Log ensemble model with signature and input example
-            mlflow.sklearn.log_model(
-                voting_clf, 
-                "ensemble_model",
-                signature=signature,
-                input_example=self.X_train[:5]
-            )
-            
-            # Add ensemble results to card
-            current.card.append(Markdown(
-                "## Ensemble Model Results\n" +
-                f"* Model Type: Soft Voting Classifier\n" +
-                f"* Base Models: {[name for name, _, _ in self.trained_models]}\n" +
-                f"* Validation Accuracy: {final_accuracy:.4f}\n"
-            ))
-            
-            # Add comparison visualization
-            model_results = pd.DataFrame({
-                'Model': [name for name, _, acc in self.trained_models] + ['Ensemble'],
-                'Accuracy': [acc for _, _, acc in self.trained_models] + [final_accuracy]
+        
+        # Sort models by validation accuracy
+        sorted_models = sorted(self.trained_models, key=lambda x: x[2], reverse=True)
+        best_model = sorted_models[0]
+        
+        # Start MLflow run for model comparison
+        with mlflow.start_run(run_name="model_comparison") as run:
+            # Log best model metrics
+            mlflow.log_metrics({
+                "best_model_accuracy": best_model[2],
+                "best_model_training_time": best_model[3]
             })
+            mlflow.log_param("best_model_name", best_model[0])
             
+            # Create comparison visualization with timing information
+            model_results = pd.DataFrame({
+                'Model': [name for name, _, acc, time in sorted_models],
+                'Accuracy': [acc for _, _, acc, time in sorted_models],
+                'Training_Time': [time for _, _, acc, time in sorted_models]
+            })
+
+            # Add detailed metrics to card
+            current.card.append(Markdown(
+                "## Model Performance Comparison\n"
+                f"### Best Model: {best_model[0]}\n"
+                f"* Validation Accuracy: {best_model[2]:.4f}\n"
+                f"* Training Time: {best_model[3]:.2f} seconds\n\n"
+                "### All Models Performance:\n" +
+                "\n".join([f"* {name}: {acc:.4f} ({time:.2f}s)" 
+                          for name, _, acc, time in sorted_models])
+            ))
+
+            # Add bar chart visualization with color coding by training time
             current.card.append(
                 VegaChart({
                     "data": {"values": model_results.to_dict(orient="records")},
@@ -571,13 +602,114 @@ class MLFlowPipeline(FlowSpec):
                             "field": "Accuracy",
                             "type": "quantitative",
                             "scale": {"domain": [0, 1]}
+                        },
+                        "color": {
+                            "field": "Training_Time",
+                            "type": "quantitative",
+                            "title": "Training Time (s)"
                         }
                     },
                     "title": "Model Performance Comparison"
                 })
             )
-            
+
+            # Log the best model
+            signature = infer_signature(inputs[0].X_train, inputs[0].y_val)
+            mlflow.sklearn.log_model(
+                best_model[1],
+                f"best_model_{best_model[0]}",
+                signature=signature,
+                input_example=inputs[0].X_train[:5]
+            )
+
         self.next(self.end)
+
+    # https://github.com/scikit-learn/scikit-learn/issues/12297
+    # can't use sklearn voting classifier for pre-fitted models
+    
+    # @card    
+    # @resources(cpu=8, memory=4000)  
+    # @step
+    # def join(self, inputs):
+    #     '''
+    #     Join the results of the parallel training steps.
+    #     '''
+    #     self.trained_models = [input.trained_models for input in inputs]
+    #     self.trained_models = [item for sublist in self.trained_models for item in sublist]  # Flatten the list
+    #     print(f"Trained models: {self.trained_models} \n")
+    #     # Ensure variables are passed to the next step
+    #     self.X_train = inputs[0].X_train  # Assuming all steps have the same data
+    #     self.X_val = inputs[0].X_val
+    #     self.y_train = inputs[0].y_train
+    #     self.y_val = inputs[0].y_val
+    #     self.next(self.ensemble)
+    
+    # @card
+    # @resources(cpu=8, memory=4000)  
+    # @step
+    # def ensemble(self):
+    #     '''
+    #     Perform manual soft-voting ensemble using trained models.
+    #     '''
+    #     import numpy as np
+
+    #     # Start MLflow run for ensemble model
+    #     with mlflow.start_run(run_name="ensemble_model") as run:
+            
+    #         eclf = VotingClassifier(
+    #             estimators=[(name, model) for name, model, _ in self.trained_models],
+    #             voting='soft'
+    #         )
+    #         eclf.fit(self.X_train, self.y_train)
+    #         y_pred = eclf.predict(self.X_val)
+    #         final_accuracy = accuracy_score(self.y_val, y_pred)
+            
+    #         # Log ensemble metrics
+    #         mlflow.log_metric("ensemble_accuracy", final_accuracy)
+            
+    #         # Infer model signature for ensemble
+    #         signature = infer_signature(self.X_train, y_pred)
+            
+    #         # Log ensemble model
+    #         mlflow.sklearn.log_model(
+    #             eclf, 
+    #             "ensemble_model",
+    #             signature=signature,
+    #             input_example=self.X_train[:5]
+    #         )
+
+    #         # Update metaflow card
+    #         current.card.append(Markdown(
+    #             "## Ensemble Model Results\n" +
+    #             f"* Method: Manual Soft Voting\n" +
+    #             f"* Base Models: {[name for name, _, _ in self.trained_models]}\n" +
+    #             f"* Validation Accuracy: {final_accuracy:.4f}\n"
+    #         ))
+
+    #         # Add comparison visualization
+    #         model_results = pd.DataFrame({
+    #             'Model': [name for name, _, acc in self.trained_models] + ['Ensemble'],
+    #             'Accuracy': [acc for _, _, acc in self.trained_models] + [final_accuracy]
+    #         })
+
+    #         current.card.append(
+    #             VegaChart({
+    #                 "data": {"values": model_results.to_dict(orient="records")},
+    #                 "mark": "bar",
+    #                 "encoding": {
+    #                     "x": {"field": "Model", "type": "nominal"},
+    #                     "y": {
+    #                         "field": "Accuracy",
+    #                         "type": "quantitative",
+    #                         "scale": {"domain": [0, 1]}
+    #                     }
+    #                 },
+    #                 "title": "Model Performance Comparison"
+    #             })
+    #         )
+
+    #     self.next(self.end)
+
 
     @card    
     @step
@@ -585,7 +717,7 @@ class MLFlowPipeline(FlowSpec):
         '''
         Final step to conclude the pipeline.
         '''
-        print("Pipeline completed.")
+        print("Pipeline completed successfully.")
 
 if __name__ == '__main__':
     MLFlowPipeline()
