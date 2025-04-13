@@ -12,7 +12,7 @@
 Link video demo xem ở [đây](https://drive.google.com/file/d/1fqHUXSFL31XyWmoZeUkEIUw4oRfo9X3y/view?usp=drive_link)
 
 ## Tổng Quan  
-Dự án này triển khai một pipeline máy học đầu-cuối để dự đoán chất lượng rượu vang, sử dụng Metaflow và MLflow. Pipeline bao gồm các bước: tải dữ liệu, phân tích dữ liệu khám phá (EDA), huấn luyện mô hình với cross-validation, và so sánh các mô hình.
+Dự án này triển khai một pipeline máy học đầu-cuối để dự đoán chất lượng rượu vang, sử dụng Metaflow và MLflow. Pipeline bao gồm các bước: tải dữ liệu, phân tích dữ liệu khám phá (EDA), huấn luyện mô hình, tìm tham số tối ưu, và so sánh các mô hình.
 
 ## Các Bước Trong Pipeline
 
@@ -36,8 +36,8 @@ Dự án này triển khai một pipeline máy học đầu-cuối để dự đ
 - Lưu dữ liệu để sử dụng trong huấn luyện song song nhiều mô hình
 
 ### 4. Huấn Luyện Mô Hình (`train_models`)
-- Huấn luyện song song nhiều mô hình [classifier](https://github.com/hyperopt/hyperopt-sklearn#classifiers) qua [hyperopt-sklearn](https://github.com/hyperopt/hyperopt-sklearn)
-- Tùy chọn tối ưu siêu tham số bằng Hyperopt  
+- Huấn luyện song song nhiều mô hình [classifier](https://github.com/hyperopt/hyperopt-sklearn#classifiers)
+- Tùy chọn tối ưu siêu tham số bằng [hyperopt-sklearn](https://github.com/hyperopt/hyperopt-sklearn)
 - Theo dõi thời gian huấn luyện cho mỗi mô hình
 - Ghi log đầy đủ các chỉ số và tham số vào MLflow
 - Hiển thị kết quả chi tiết trong Metaflow cards
@@ -50,7 +50,7 @@ Dự án này triển khai một pipeline máy học đầu-cuối để dự đ
 - Ghi log mô hình tốt nhất vào MLflow với signature và input example
 
 ## Các Tính Năng Chính
-- **Tối Ưu Siêu Tham Số Tự Động**: Sử dụng Hyperopt để điều chỉnh mô hình
+- **Tối Ưu Siêu Tham Số Tự Động**: Sử dụng hyperopt-sklearn để điều chỉnh mô hình
 - **Huấn Luyện Song Song**: Tăng hiệu suất bằng huấn luyện đồng thời nhiều mô hình
 - **Theo Dõi Hiệu Suất**: Đo lường và so sánh cả độ chính xác và thời gian huấn luyện
 - **Biểu Đồ Tương Tác**: Cung cấp cái nhìn trực quan sinh động qua Metaflow cards
@@ -69,6 +69,12 @@ Dự án này triển khai một pipeline máy học đầu-cuối để dự đ
 - Quản lý mô hình  
 - Quản lý phiên bản dữ liệu  
 - Ghi log chỉ số và trực quan hóa
+
+### Hyperopt-sklearn
+- Tự động lựa chọn mô hình và tối ưu siêu tham số
+- Tìm kiếm không gian tham số bằng thuật toán Bayesian (TPE), Random Search, Annealing, ...
+- Hỗ trợ nhiều thuật toán học máy trong scikit-learn
+- Tích hợp dễ dàng với pipeline huấn luyện và theo dõi thí nghiệm
 
 ## Cài Đặt
 
