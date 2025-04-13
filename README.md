@@ -34,7 +34,7 @@ Dự án này triển khai một pipeline máy học đầu-cuối để dự đ
 - Lưu dữ liệu để sử dụng trong huấn luyện song song nhiều mô hình
 
 ### 4. Huấn Luyện Mô Hình (`train_models`)
-- Huấn luyện song song nhiều mô hình [classifier](https://github.com/hyperopt/hyperopt-sklearn#classifiers) qua [hyperopt-sklearn](https://github.com/hyperopt/hyperopt-sklearn#classifiers)
+- Huấn luyện song song nhiều mô hình [classifier](https://github.com/hyperopt/hyperopt-sklearn#classifiers) qua [hyperopt-sklearn](https://github.com/hyperopt/hyperopt-sklearn)
 - Tùy chọn tối ưu siêu tham số bằng Hyperopt  
 - Theo dõi thời gian huấn luyện cho mỗi mô hình
 - Ghi log đầy đủ các chỉ số và tham số vào MLflow
@@ -82,7 +82,7 @@ source .venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
 ```
 
-3. Khởi động máy chủ MLflow:
+3. Khởi động máy chủ MLflow: Mở một terminal riêng và chạy
 ```bash
 mlflow server --host 127.0.0.1 --port 5000
 ```
@@ -95,10 +95,11 @@ Trong cùng thư mục của dự án.
 python main.py run
 ```
 
-### Bật Tối Ưu Siêu Tham Số
+### Bật Tối Ưu Siêu Tham Số 
 ```bash
 python main.py run --use_hyperopt true
 ```
+Lưu ý: Thời gian chạy sẽ lâu nếu dùng nhiều model/model train lâu (~ 20 phút cho tất cả).
 
 ### Chỉ Định Đường Dẫn Dữ Liệu Tùy Chỉnh
 ```bash

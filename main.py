@@ -91,29 +91,46 @@ class MLFlowPipeline(FlowSpec):
         '''
         Set up the MLflow tracking URI and define the models to be trained.
         '''
+        self.mlflow_enable_system_metrics_logging = os.getenv("MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING")
+        
+        if self.mlflow_enable_system_metrics_logging:
+            # For example, if you set sample interval to 2 seconds and samples before logging to 3, 
+            # then system metrics will be collected every 2 seconds, 
+            # then after 3 samples are collected (2 * 3 = 6s), 
+            # we aggregate the metrics and log to MLflow server.
+            
+            # For some reason, mlflow doesn't log any model's system metrics that run less than 10 seconds even when manually set below
+            
+            mlflow.set_system_metrics_sampling_interval(1)
+            mlflow.set_system_metrics_samples_before_logging(1)
+            mlflow.enable_system_metrics_logging()
+            print("System metrics logging is enabled.")
+        
         if not isinstance(self.DATA_DIR, str) or not isinstance(self.DATASET_URL, str):
             raise TypeError("DATA_DIR and DATASET_URL must be strings")
 
+        self.mlflow_tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+        
         # Set MLflow tracking URI
-        mlflow.set_tracking_uri("http://127.0.0.1:5000")
+        mlflow.set_tracking_uri(self.mlflow_tracking_uri)
 
         # Define model configurations
         self.model_configs = [
             {'name': model_name, 'model': model_class} 
             for model_name, model_class in {
                 'dt': DecisionTreeClassifier,
-                'rf': RandomForestClassifier,
-                'ada': AdaBoostClassifier,
-                'et': ExtraTreesClassifier,
+                # 'rf': RandomForestClassifier,
+                # 'ada': AdaBoostClassifier,
+                # 'et': ExtraTreesClassifier,
                 'bag': BaggingClassifier,
                 'knn': KNeighborsClassifier,
-                'xgb': XGBClassifier,
-                # 'gb': GradientBoostingClassifier,
-                # 'gnb': GaussianNB,
+                # 'xgb': XGBClassifier,
+                'gnb': GaussianNB,
                 'sgd': SGDClassifier,
-                # 'mlp': MLPClassifier,
                 # 'svc': SVC,
-                'lsvc': LinearSVC,
+                # 'lsvc': LinearSVC,
+                # 'gb': GradientBoostingClassifier,
+                # 'mlp': MLPClassifier,
             }.items()
         ]
 
@@ -407,22 +424,22 @@ class MLFlowPipeline(FlowSpec):
                 'criterion': 'log_loss',
                 'default_params': {'max_depth': 5, 'min_samples_split': 2, 'min_samples_leaf': 1}
             },
-            # Training Time: 425.55 seconds
-            'rf': {
-                'hp_model': lambda: random_forest_classifier('rf_classifier'),
-                'criterion': 'log_loss',
-                'default_params': {'n_estimators': 100, 'max_depth': 10, 'min_samples_split': 2}
-            },
-            # Training Time: 111.14 seconds
-            'ada': {
-                'hp_model': lambda: ada_boost_classifier('ada_classifier'),
-                'default_params': {'n_estimators': 50, 'learning_rate': 1.0}
-            },
-            # Training Time: 178.22 seconds
-            'et': {
-                'hp_model': lambda: extra_trees_classifier('et_classifier'),
-                'default_params': {'n_estimators': 100, 'max_depth': 10}
-            },
+            # # Training Time: 425.55 seconds
+            # 'rf': {
+            #     'hp_model': lambda: random_forest_classifier('rf_classifier'),
+            #     'criterion': 'log_loss',
+            #     'default_params': {'n_estimators': 100, 'max_depth': 10, 'min_samples_split': 2}
+            # },
+            # # Training Time: 111.14 seconds
+            # 'ada': {
+            #     'hp_model': lambda: ada_boost_classifier('ada_classifier'),
+            #     'default_params': {'n_estimators': 50, 'learning_rate': 1.0}
+            # },
+            # # Training Time: 178.22 seconds
+            # 'et': {
+            #     'hp_model': lambda: extra_trees_classifier('et_classifier'),
+            #     'default_params': {'n_estimators': 100, 'max_depth': 10}
+            # },
             # Training Time: 41.07 seconds
             'bag': {
                 'hp_model': lambda: bagging_classifier('bag_classifier'),
@@ -433,46 +450,47 @@ class MLFlowPipeline(FlowSpec):
                 'hp_model': lambda: k_neighbors_classifier('knn_classifier'),
                 'default_params': {'n_neighbors': 5, 'weights': 'uniform'}
             },
-            # Training Time: 693.22 seconds
-            'xgb': {
-                'hp_model': lambda: xgboost_classification('xgb_classifier'),
-                'default_params': {
-                    'n_estimators': 100,
-                    'learning_rate': 0.1,
-                    'max_depth': 3,
-                    'gamma': 0
-                }
-            },
-            # # Buggy models
-            # 'gb': {
-            #     'hp_model': lambda: gradient_boosting_classifier('gb_classifier'),
-            #     'criterion': 'log_loss',
-            #     'default_params': {'n_estimators': 100, 'learning_rate': 0.1, 'max_depth': 3}
+            # # Training Time: 693.22 seconds
+            # 'xgb': {
+            #     'hp_model': lambda: xgboost_classification('xgb_classifier'),
+            #     'default_params': {
+            #         'n_estimators': 100,
+            #         'learning_rate': 0.1,
+            #         'max_depth': 3,
+            #         'gamma': 0
+            #     }
             # },
             # Training Time: 4.51 seconds
-            # 'gnb': {
-            #     'hp_model': lambda: gaussian_nb('gnb_classifier'),
-            #     'default_params': {}
-            # },
+            'gnb': {
+                'hp_model': lambda: gaussian_nb('gnb_classifier'),
+                'default_params': {}
+            },
             # Training Time: 21.67 seconds
             'sgd': {
                 'hp_model': lambda: sgd_classifier('sgd_classifier'),
                 'default_params': {'loss': 'hinge', 'penalty': 'l2', 'alpha': 0.0001}
             },
-            # 'mlp': {
-            #     'hp_model': lambda: mlp_classifier('mlp_classifier'),
-            #     'default_params': {'hidden_layer_sizes': (100,), 'activation': 'relu'}
-            # },
-            # Training Time: 909.88 seconds
+            # # Training Time: 909.88 seconds
             # 'svc': {
             #     'hp_model': lambda: svc('svc_classifier'),
             #     'default_params': {'C': 1.0, 'kernel': 'rbf', 'gamma': 'scale', 'probability': True}
             # },
-            # Training Time: 260.15 seconds
-            'lsvc': {
-                'hp_model': lambda: linear_svc('lsvc_classifier'),
-                'default_params': {'C': 1.0, 'loss': 'squared_hinge'}
-            },
+            # # Training Time: 260.15 seconds
+            # 'lsvc': {
+            #     'hp_model': lambda: linear_svc('lsvc_classifier'),
+            #     'default_params': {'C': 1.0, 'loss': 'squared_hinge'}
+            # },
+            # # Buggy models
+            # https://github.com/hyperopt/hyperopt-sklearn/issues/141#issuecomment-548502709
+            # 'gb': {
+            #     'hp_model': lambda: gradient_boosting_classifier('gb_classifier'),
+            #     'criterion': 'log_loss',
+            #     'default_params': {'n_estimators': 100, 'learning_rate': 0.1, 'max_depth': 3}
+            # },
+            # 'mlp': {
+            #     'hp_model': lambda: mlp_classifier('mlp_classifier'),
+            #     'default_params': {'hidden_layer_sizes': (100,), 'activation': 'relu'}
+            # },
         }
 
         with mlflow.start_run(run_name=f"model_{model_name}") as run:
@@ -498,6 +516,47 @@ class MLFlowPipeline(FlowSpec):
                     # Transform predictions back to original labels
                     y_pred = label_encoder.inverse_transform(y_pred_encoded)
                     
+                    best_model_config = estimator.best_model()
+                    
+                    # # Log learner parameters
+                    # learner = best_model_config.get('learner', {})
+                    # if learner:
+                    #     learner_params = learner.get_params()
+                    #     mlflow.log_params({
+                    #         f"learner_{key}": value 
+                    #         for key, value in learner_params.items()
+                    #     })
+                    
+                    # # Log preprocessor parameters
+                    # preprocs = best_model_config.get('preprocs', ())
+                    # for i, preproc in enumerate(preprocs):
+                    #     preproc_params = preproc.get_params()
+                    #     mlflow.log_params({
+                    #         f"preproc_{i}_{key}": value 
+                    #         for key, value in preproc_params.items()
+                    #     })
+                    
+                    # # Log any extra preprocessor parameters
+                    # ex_preprocs = best_model_config.get('ex_preprocs', ())
+                    # for i, ex_preproc in enumerate(ex_preprocs):
+                    #     ex_preproc_params = ex_preproc.get_params()
+                    #     mlflow.log_params({
+                    #         f"ex_preproc_{i}_{key}": value 
+                    #         for key, value in ex_preproc_params.items()
+                    #     })
+                    
+                    # Log best model configuration to MLflow
+                    mlflow.log_params({
+                        "best_model_config": str(best_model_config),
+                        # "best_model_learner": str(best_model_config.get('learner', '')),
+                        # "best_model_preprocessors": str(best_model_config.get('preprocs', '')),
+                    })
+                    
+                    current.card.append(Markdown(
+                        f"### Best Model Configuration\n" +
+                        f"```python\n{best_model_config}\n```\n"
+                    ))
+
                 else:
                     print(f"[{model_name}] Using default parameters...")
                     params = model_mappings[model_name]['default_params']
@@ -519,6 +578,7 @@ class MLFlowPipeline(FlowSpec):
                     "method": "HyperoptEstimator" if self.USE_HYPEROPT else "default_parameters",
                     **model_mappings[model_name]['default_params']
                 })
+                
                 if self.USE_HYPEROPT:
                     mlflow.log_params({
                         "label_mapping": str(dict(zip(
@@ -526,6 +586,7 @@ class MLFlowPipeline(FlowSpec):
                             label_encoder.transform(label_encoder.classes_)
                         )))
                     })
+                    
                 mlflow.log_metrics({
                     "validation_accuracy": val_acc,
                     "training_time_seconds": training_time
@@ -535,7 +596,7 @@ class MLFlowPipeline(FlowSpec):
                 current.card.append(Markdown(
                     f"## Model: {model_name}\n" +
                     f"* Method: {'HyperoptEstimator' if self.USE_HYPEROPT else 'Default Parameters'}\n" +
-                    f"* Parameters: {model_mappings[model_name]['default_params']}\n" +
+                    f"* Default Parameters: {model_mappings[model_name]['default_params']}\n" +
                     f"* Training Time: {training_time:.2f} seconds\n" +
                     f"* Validation Accuracy: {val_acc:.4f}\n"
                 ))
@@ -614,6 +675,7 @@ class MLFlowPipeline(FlowSpec):
             )
 
             # Log the best model
+            print('Logging best model...')
             signature = infer_signature(inputs[0].X_train, inputs[0].y_val)
             mlflow.sklearn.log_model(
                 best_model[1],
@@ -621,6 +683,7 @@ class MLFlowPipeline(FlowSpec):
                 signature=signature,
                 input_example=inputs[0].X_train[:5]
             )
+            print(f"Best model {best_model[0]} logged successfully.")
 
         self.next(self.end)
 
