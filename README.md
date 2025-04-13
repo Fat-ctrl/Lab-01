@@ -9,6 +9,8 @@
 
 # Pipeline MLflow Dự Đoán Chất Lượng Rượu Vang
 
+Link video demo xem ở [đây](https://drive.google.com/file/d/1fqHUXSFL31XyWmoZeUkEIUw4oRfo9X3y/view?usp=drive_link)
+
 ## Tổng Quan  
 Dự án này triển khai một pipeline máy học đầu-cuối để dự đoán chất lượng rượu vang, sử dụng Metaflow và MLflow. Pipeline bao gồm các bước: tải dữ liệu, phân tích dữ liệu khám phá (EDA), huấn luyện mô hình với cross-validation, và so sánh các mô hình.
 
