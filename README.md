@@ -12,12 +12,12 @@
 Link video demo xem ở [đây](https://drive.google.com/file/d/1fqHUXSFL31XyWmoZeUkEIUw4oRfo9X3y/view?usp=drive_link)
 
 ## Tổng Quan  
-Dự án này triển khai một pipeline máy học đầu-cuối để dự đoán chất lượng rượu vang, sử dụng Metaflow và MLflow. Pipeline bao gồm các bước: tải dữ liệu, phân tích dữ liệu khám phá (EDA), huấn luyện mô hình, tìm tham số tối ưu, và so sánh các mô hình.
+Dự án này triển khai một pipeline máy học đầu-cuối để dự đoán chất lượng rượu vang ([nguồn dataset tham khảo](https://www.kaggle.com/datasets/piyushagni5/white-wine-quality)), sử dụng Metaflow và MLflow. Pipeline bao gồm các bước: tải dữ liệu, phân tích dữ liệu khám phá (EDA), huấn luyện mô hình, tìm tham số tối ưu, và so sánh các mô hình.
 
 ## Các Bước Trong Pipeline
 
 ### 1. Tải Dữ Liệu (`load_dataset`)
-- Tải bộ dữ liệu chất lượng rượu vang từ kho dữ liệu của MLflow  
+- Tải bộ dữ liệu chất lượng rượu vang từ kho dữ liệu của MLflow (xem tại [đây](https://raw.githubusercontent.com/mlflow/mlflow/master/tests/datasets/winequality-white.csv))
 - Thực hiện quản lý phiên bản dữ liệu bằng dấu thời gian  
 - Ghi log metadata và thống kê dữ liệu vào MLflow  
 - Hỗ trợ cả nguồn dữ liệu cục bộ (local) và từ xa (tải internet)
