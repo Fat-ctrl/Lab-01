@@ -1,4 +1,4 @@
-from metaflow import FlowSpec, step, card, environment, Parameter, current, resources
+from metaflow import FlowSpec, step, card, environment, Parameter, current, resources, pypi_base
 import pandas as pd
 import os
 from datetime import datetime
@@ -38,6 +38,18 @@ import matplotlib.pyplot as plt
 plt.style.use("ggplot")  #using style ggplot
 from metaflow.cards import VegaChart
 from metaflow.cards import Markdown
+
+@pypi_base(
+    python="3.13.3",
+    packages={
+        "hyperopt-sklearn": "1.1.1",
+        "matplotlib": " 3.10.1",
+        "mlflow": "2.22.0",
+        "xgboost": "3.0.0",
+        "metaflow": "2.15.10"
+    }
+)
+
 
 class MLFlowPipeline(FlowSpec):
     """MLflow pipeline for training and evaluating wine quality models.
