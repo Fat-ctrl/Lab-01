@@ -8,8 +8,8 @@
 
 # Pipeline MLflow Dự Đoán Chất Lượng Rượu Vang
 
-- Link video demo main flow xem ở [đây](https://drive.google.com/file/d/1fqHUXSFL31XyWmoZeUkEIUw4oRfo9X3y/view?usp=drive_link)
-- Link video demo docker-compose xem ở [đây]()
+- Link video demo main flow xem ở [đây](https://drive.google.com/file/d/1fqHUXSFL31XyWmoZeUkEIUw4oRfo9X3y/view)
+- Link video demo docker-compose xem ở [đây](https://drive.google.com/file/d/109bz4EcAOxRBOUyqWTE7Xr9S-T_qwIRp/view)
 
 ## Tổng Quan  
 Dự án này triển khai một pipeline máy học đầu-cuối để dự đoán chất lượng rượu vang ([nguồn dataset tham khảo](https://www.kaggle.com/datasets/piyushagni5/white-wine-quality)), sử dụng Metaflow và MLflow. Pipeline bao gồm các bước: tải dữ liệu, phân tích dữ liệu khám phá (EDA), huấn luyện mô hình, tìm tham số tối ưu, và so sánh các mô hình.

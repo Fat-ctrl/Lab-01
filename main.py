@@ -50,7 +50,6 @@ from metaflow.cards import Markdown
     }
 )
 
-
 class MLFlowPipeline(FlowSpec):
     """MLflow pipeline for training and evaluating wine quality models.
     
