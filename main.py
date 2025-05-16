@@ -26,7 +26,7 @@ from xgboost import XGBClassifier
 # Sklearn hyperopt
 from hpsklearn import *
 # from hyperopt import hp, STATUS_OK, Trials, fmin
-from hyperopt import  tpe
+from hyperopt import tpe
 
 # MLflow
 import mlflow
@@ -681,7 +681,8 @@ class MLFlowPipeline(FlowSpec):
                 best_model[1],
                 f"best_model_{best_model[0]}",
                 signature=signature,
-                input_example=inputs[0].X_train[:5]
+                input_example=inputs[0].X_train[:5],
+                registered_model_name="sk-learn-best-model",
             )
             print(f"Best model {best_model[0]} logged successfully.")
 

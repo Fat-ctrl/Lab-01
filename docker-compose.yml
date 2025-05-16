@@ -1,0 +1,39 @@
+version: '3.9'
+
+services:
+  mlflow-server:
+    image: ghcr.io/mlflow/mlflow:v2.21.3
+    container_name: mlflow-server
+    environment:
+      - MLFLOW_ARTIFACT_ROOT=/mlflow/artifacts
+    ports:
+      - "5000:5000"
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+
+  train-pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile-train
+    container_name: train-pipeline
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow-server:5000
+      - USER=mlflow_user
+      - OMP_NUM_THREADS=4
+    depends_on:
+      - mlflow-server
+
+  model-serving:
+    build:
+      context: .
+      dockerfile: Dockerfile-serve
+    container_name: model-serving
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow-server:5000
+    depends_on:
+      train-pipeline:
+        condition: service_completed_successfully
+    ports:
+      - "5050:5050"

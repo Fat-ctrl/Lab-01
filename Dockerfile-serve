@@ -1,0 +1,21 @@
+FROM python:3.12.3-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential gcc wget
+
+WORKDIR /app
+
+# Copy requirements (if you have one)
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Reduce image size
+RUN rm -rf /var/lib/apt/lists/*
+
+# Set environment variables (optional, can also be set in docker-compose)
+ENV MLFLOW_TRACKING_URI=http://mlflow-server:5000
+
+CMD [ "mlflow", "models", "serve", "-m", "models:/sk-learn-best-model/latest", "-p", "5050", "--no-conda", "--host", "0.0.0.0" ]

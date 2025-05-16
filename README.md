@@ -5,11 +5,11 @@
 </p>
 
 <h1 align="center"><b>PHÁT TRIỂN VÀ VẬN HÀNH HỆ THỐNG MÁY HỌC</b></h1>
-<h2 align="center"><b>Lab 1 - Xây dựng training pipeline có sử dụng experiment tracking</b></h2>
 
 # Pipeline MLflow Dự Đoán Chất Lượng Rượu Vang
 
-Link video demo xem ở [đây](https://drive.google.com/file/d/1fqHUXSFL31XyWmoZeUkEIUw4oRfo9X3y/view?usp=drive_link)
+- Link video demo main flow xem ở [đây](https://drive.google.com/file/d/1fqHUXSFL31XyWmoZeUkEIUw4oRfo9X3y/view?usp=drive_link)
+- Link video demo docker-compose xem ở [đây]()
 
 ## Tổng Quan  
 Dự án này triển khai một pipeline máy học đầu-cuối để dự đoán chất lượng rượu vang ([nguồn dataset tham khảo](https://www.kaggle.com/datasets/piyushagni5/white-wine-quality)), sử dụng Metaflow và MLflow. Pipeline bao gồm các bước: tải dữ liệu, phân tích dữ liệu khám phá (EDA), huấn luyện mô hình, tìm tham số tối ưu, và so sánh các mô hình.
@@ -128,6 +128,57 @@ Trong cùng thư mục của dự án, chạy trong terminal mới:
 python main.py card server
 ```
 Truy cập tại: http://localhost:8324
+
+## Chạy Bằng Docker Compose
+
+### 1. Build và khởi động toàn bộ hệ thống
+
+Trong thư mục dự án, chạy lệnh sau để build và khởi động các service (MLflow server, train pipeline, model serving):
+
+```bash
+docker-compose up --build
+```
+
+- Service `mlflow-server`: Chạy MLflow Tracking Server tại [http://localhost:5000](http://localhost:5000)
+- Service `train-pipeline`: Tự động huấn luyện và đăng ký mô hình tốt nhất vào MLflow Model Registry
+- Service `model-serving`: Tự động phục vụ mô hình tốt nhất qua REST API tại [http://localhost:5050/invocations](http://localhost:5050/invocations)
+
+### 2. Gửi yêu cầu dự đoán (inference)
+
+Sau khi các container đã chạy xong, bạn có thể gửi yêu cầu dự đoán tới API phục vụ mô hình:
+
+```bash
+curl -d '{"dataframe_split": {
+"columns": ["fixed acidity","volatile acidity","citric acid","residual sugar","chlorides","free sulfur dioxide","total sulfur dioxide","density","pH","sulphates","alcohol"],
+"data": [[7,0.27,0.36,20.7,0.045,45,170,1.001,3,0.45,8.8]]}}' \
+-H 'Content-Type: application/json' -X POST localhost:5050/invocations
+```
+
+Kết quả server trả về sẽ có dạng tương ứng với một trong các nhãn dự đoán:
+
+```json
+{"predictions": [3]}
+```
+
+### 3. Dừng toàn bộ hệ thống
+
+Nhấn `Ctrl+C` trong terminal đang chạy hoặc dùng lệnh:
+
+```bash
+docker-compose down
+```
+
+### Lưu ý
+
+- Đảm bảo Docker và Docker Compose đã được cài đặt trên máy.
+- Lần chạy đầu tiên có thể mất thời gian để build image và tải dữ liệu.
+- Có thể kiểm tra logs của từng service bằng lệnh:
+  ```bash
+  docker-compose logs <service-name>
+  ```
+  Ví dụ: `docker-compose logs train-pipeline`
+
+---
 
 ## Ghi Chú
 - Hãy đảm bảo máy chủ MLflow đã được khởi động trước khi chạy pipeline  

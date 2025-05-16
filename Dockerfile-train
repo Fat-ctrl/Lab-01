@@ -1,0 +1,25 @@
+FROM python:3.12.3-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential gcc wget
+
+WORKDIR /app
+
+# Copy requirements (if you have one)
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the main code
+COPY main.py .
+
+# Reudce image size
+RUN rm -rf /var/lib/apt/lists/*
+
+# Set environment variables (optional, can also be set in docker-compose)
+ENV MLFLOW_TRACKING_URI=http://mlflow-server:5000
+
+# Default command to run the training pipeline
+CMD ["python", "main.py", "--no-pylint", "run", "--use_hyperopt", "true"]
