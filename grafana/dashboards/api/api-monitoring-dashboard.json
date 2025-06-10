@@ -1,0 +1,155 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "API Monitoring",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "title": "Requests Per Second",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[1m]))",
+          "legendFormat": "Total RPS"
+        },
+        {
+          "expr": "sum(rate(http_requests_total{status=\"200\"}[1m]))",
+          "legendFormat": "Successful RPS"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "Requests/sec"
+        },
+        {
+          "format": "short",
+          "show": false
+        }
+      ],
+      "fill": 1,
+      "linewidth": 1
+    },
+    {
+      "title": "Error Rate (%)",
+      "type": "graph", 
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"5.*\"}[5m])) / sum(rate(http_requests_total[5m])) * 100",
+          "legendFormat": "5xx Errors"
+        },
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"4.*\"}[5m])) / sum(rate(http_requests_total[5m])) * 100",
+          "legendFormat": "4xx Errors"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "percent",
+          "label": "Error Rate",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "format": "short",
+          "show": false
+        }
+      ],
+      "alert": {
+        "name": "High Error Rate",
+        "conditions": [
+          {
+            "type": "query",
+            "evaluator": {
+              "type": "gt",
+              "params": [10]
+            }
+          }
+        ],
+        "frequency": "1m"
+      }
+    },
+    {
+      "title": "API Latency",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "rate(model_prediction_seconds_sum[1m]) / rate(model_prediction_seconds_count[1m])",
+          "legendFormat": "Average Latency"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(model_prediction_seconds_bucket[1m]))",
+          "legendFormat": "P95 Latency"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(model_prediction_seconds_bucket[1m]))",
+          "legendFormat": "P99 Latency"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "s",
+          "label": "Response Time"
+        },
+        {
+          "format": "short",
+          "show": false
+        }
+      ],
+      "alert": {
+        "name": "High Latency",
+        "conditions": [
+          {
+            "type": "query",
+            "evaluator": {
+              "type": "gt",
+              "params": [1.0]
+            }
+          }
+        ],
+        "frequency": "1m"
+      }
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "title": "API Performance",
+  "uid": "api-metrics-001",
+  "version": 1
+}

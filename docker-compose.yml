@@ -1,4 +1,14 @@
-version: '3.9'
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  prometheus_data: {}
+  grafana_data: {}
+  alertmanager_data: {}
+  model_serving_logs: {}
+  mlflow_data: {}
+  mlflow_artifacts: {}
 
 services:
   mlflow-server:
@@ -6,12 +16,113 @@ services:
     container_name: mlflow-server
     environment:
       - MLFLOW_ARTIFACT_ROOT=/mlflow/artifacts
+      - MLFLOW_BACKEND_STORE_URI=/mlflow/data/mlflow.db
+    volumes:
+      - mlflow_data:/mlflow/data
+      - mlflow_artifacts:/mlflow/artifacts
     ports:
       - "5000:5000"
+    networks:
+      - default
+      - monitoring
     command: >
       mlflow server
       --host 0.0.0.0
       --port 5000
+      --backend-store-uri sqlite:///mlflow/data/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: unless-stopped
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - ./alertmanager/logs:/alertmanager/logs
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    user: root  # To ensure write permissions to log file
+    ports:
+      - "9093:9093"
+    networks:
+      - monitoring
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+      - /etc/machine-id:/etc/machine-id:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards/system:/etc/grafana/dashboards/system:ro
+      - ./grafana/dashboards/api:/etc/grafana/dashboards/api:ro
+      - ./grafana/dashboards/ml:/etc/grafana/dashboards/ml:ro
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
 
   train-pipeline:
     build:
@@ -21,19 +132,77 @@ services:
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow-server:5000
       - USER=mlflow_user
-      - OMP_NUM_THREADS=4
+      - OMP_NUM_THREADS=10
+    volumes:
+      - .:/app
+      - mlflow_artifacts:/mlflow/artifacts
+    deploy:
+      resources:
+        limits:
+          cpus: '10'
+          memory: 8G
     depends_on:
       - mlflow-server
+      - node-exporter
+      - prometheus
+      - grafana
 
   model-serving:
     build:
       context: .
       dockerfile: Dockerfile-serve
     container_name: model-serving
+    restart: unless-stopped
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow-server:5000
-    depends_on:
-      train-pipeline:
-        condition: service_completed_successfully
+      - MODEL_URI=models:/sk-learn-best-model/latest
+      - PYTHONUNBUFFERED=1
+      - ENABLE_METRICS=true
+    volumes:
+      - ./app:/app/app:delegated
+      - model_serving_logs:/app/logs
+      - mlflow_artifacts:/mlflow/artifacts
+    deploy:
+      resources:
+        limits:
+          cpus: '10'
+          memory: 8G
+    command: >
+      bash -c "
+        mkdir -p /app/logs &&
+        uvicorn app.main:app --host 0.0.0.0 --port 5050 --reload --log-config app/logging.conf
+      "
     ports:
       - "5050:5050"
+    networks:
+      - default
+      - monitoring
+    depends_on:
+      mlflow-server:
+        condition: service_started
+      train-pipeline:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5050/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Make DCGM exporter optional
+  dcgm-exporter:
+    profiles:
+      - gpu
+    image: nvidia/dcgm-exporter:latest
+    container_name: dcgm-exporter
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '10'
+          memory: 2G
+    ports:
+      - "9400:9400"
+    networks:
+      - monitoring
+

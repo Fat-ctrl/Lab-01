@@ -6,11 +6,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy requirements (if you have one)
+# Copy requirements and application code
 COPY requirements.txt .
+COPY app/ app/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Create logs directory
+RUN mkdir -p /app/logs
 
 # Reduce image size
 RUN rm -rf /var/lib/apt/lists/*
@@ -18,4 +22,5 @@ RUN rm -rf /var/lib/apt/lists/*
 # Set environment variables (optional, can also be set in docker-compose)
 ENV MLFLOW_TRACKING_URI=http://mlflow-server:5000
 
-CMD [ "mlflow", "models", "serve", "-m", "models:/sk-learn-best-model/latest", "-p", "5050", "--no-conda", "--host", "0.0.0.0" ]
+# Run FastAPI app with uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5050", "--reload"]

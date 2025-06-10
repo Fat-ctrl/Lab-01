@@ -1,0 +1,115 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Model Performance",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      }
+    },
+    {
+      "title": "Inference Speed",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "targets": [
+        {
+          "expr": "rate(model_prediction_seconds_sum[1m]) / rate(model_prediction_seconds_count[1m])",
+          "legendFormat": "CPU Time/Request"
+        },
+        {
+          "expr": "rate(model_prediction_gpu_seconds_sum[1m]) / rate(model_prediction_gpu_seconds_count[1m])",
+          "legendFormat": "GPU Time/Request"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "s",
+          "label": "Seconds",
+          "logBase": 1,
+          "min": 0
+        },
+        {
+          "format": "short",
+          "show": false
+        }
+      ],
+      "alert": {
+        "name": "High Inference Latency",
+        "conditions": [
+          {
+            "type": "query",
+            "evaluator": {
+              "type": "gt",
+              "params": [1.0]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "title": "Confidence Score",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "targets": [
+        {
+          "expr": "model_confidence_score",
+          "legendFormat": "Model Confidence"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "none",
+          "label": "Confidence",
+          "logBase": 1,
+          "max": 1,
+          "min": 0
+        },
+        {
+          "format": "short",
+          "show": false
+        }
+      ],
+      "alert": {
+        "name": "Low Confidence",
+        "conditions": [
+          {
+            "type": "query",
+            "evaluator": {
+              "type": "lt",
+              "params": [0.6]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "title": "ML Model Metrics",
+  "uid": "ml-metrics-001",
+  "version": 1
+}

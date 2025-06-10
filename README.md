@@ -1,151 +1,151 @@
 <p align="center">
-  <a href="https://www.uit.edu.vn/" title="Trường Đại học Công nghệ Thông tin" style="border: none;">
-    <img src="https://i.imgur.com/WmMnSRt.png" alt="Trường Đại học Công nghệ Thông Tin | University of Information Technology">
+  <a href="https://www.uit.edu.vn/" title="University of Information Technology" style="border: none;">
+    <img src="https://i.imgur.com/WmMnSRt.png" alt="University of Information Technology">
   </a>
 </p>
 
-<h1 align="center"><b>PHÁT TRIỂN VÀ VẬN HÀNH HỆ THỐNG MÁY HỌC</b></h1>
+<h1 align="center"><b>DEVELOPMENT AND OPERATION OF MACHINE LEARNING SYSTEMS</b></h1>
 
-# Pipeline MLflow Dự Đoán Chất Lượng Rượu Vang
+# MLflow Pipeline for Wine Quality Prediction
 
-- Link video demo main flow xem ở [đây](https://drive.google.com/file/d/1fqHUXSFL31XyWmoZeUkEIUw4oRfo9X3y/view)
-- Link video demo docker-compose xem ở [đây](https://drive.google.com/file/d/109bz4EcAOxRBOUyqWTE7Xr9S-T_qwIRp/view)
+- Watch the main flow demo video [here](https://drive.google.com/file/d/1fqHUXSFL31XyWmoZeUkEIUw4oRfo9X3y/view)  
+- Watch the docker-compose demo video [here](https://drive.google.com/file/d/109bz4EcAOxRBOUyqWTE7Xr9S-T_qwIRp/view)
 
-## Tổng Quan  
-Dự án này triển khai một pipeline máy học đầu-cuối để dự đoán chất lượng rượu vang ([nguồn dataset tham khảo](https://www.kaggle.com/datasets/piyushagni5/white-wine-quality)), sử dụng Metaflow và MLflow. Pipeline bao gồm các bước: tải dữ liệu, phân tích dữ liệu khám phá (EDA), huấn luyện mô hình, tìm tham số tối ưu, và so sánh các mô hình.
+## Overview
 
-## Các Bước Trong Pipeline
+This project implements an end-to-end machine learning pipeline to predict wine quality ([dataset source](https://www.kaggle.com/datasets/piyushagni5/white-wine-quality)), using Metaflow and MLflow. The pipeline includes the following steps: data loading, exploratory data analysis (EDA), model training, hyperparameter optimization, and model comparison.
 
-### 1. Tải Dữ Liệu (`load_dataset`)
-- Tải bộ dữ liệu chất lượng rượu vang từ kho dữ liệu của MLflow (xem tại [đây](https://raw.githubusercontent.com/mlflow/mlflow/master/tests/datasets/winequality-white.csv))
-- Thực hiện quản lý phiên bản dữ liệu bằng dấu thời gian  
-- Ghi log metadata và thống kê dữ liệu vào MLflow  
-- Hỗ trợ cả nguồn dữ liệu cục bộ (local) và từ xa (tải internet)
+## Pipeline Steps
 
-### 2. Phân Tích Dữ Liệu Khám Phá (EDA) (`eda`)
-- Sinh thống kê chi tiết về bộ dữ liệu  
-- Tạo biểu đồ tương tác bằng VegaChart:
-  - Phân phối chất lượng rượu
-  - Mối quan hệ giữa các đặc trưng và chất lượng
-  - Ma trận tương quan
-- Tất cả biểu đồ được hiển thị trong Metaflow cards
+### 1. Load Dataset (`load_dataset`)
+- Load wine quality dataset from MLflow's data source (view [here](https://raw.githubusercontent.com/mlflow/mlflow/master/tests/datasets/winequality-white.csv))
+- Version control using timestamps
+- Log metadata and data statistics to MLflow
+- Supports both local and remote (internet) data sources
 
-### 3. Chuẩn Bị Dữ Liệu (`load_data`)
-- Chia dữ liệu thành tập huấn luyện và kiểm thử  
-- Áp dụng chia tập theo tỷ lệ 80-20  
-- Lưu dữ liệu để sử dụng trong huấn luyện song song nhiều mô hình
+### 2. Exploratory Data Analysis (EDA) (`eda`)
+- Generate detailed dataset statistics
+- Create interactive charts using VegaChart:
+  - Wine quality distribution
+  - Feature-quality relationships
+  - Correlation matrix
+- All charts are shown in Metaflow cards
 
-### 4. Huấn Luyện Mô Hình (`train_models`)
-- Huấn luyện song song nhiều mô hình [classifier](https://github.com/hyperopt/hyperopt-sklearn#classifiers)
-- Tùy chọn tối ưu siêu tham số bằng [hyperopt-sklearn](https://github.com/hyperopt/hyperopt-sklearn)
-- Theo dõi thời gian huấn luyện cho mỗi mô hình
-- Ghi log đầy đủ các chỉ số và tham số vào MLflow
-- Hiển thị kết quả chi tiết trong Metaflow cards
+### 3. Data Preparation (`load_data`)
+- Split data into training and testing sets (80/20)
+- Save split data for parallel model training
 
-### 5. So Sánh Các Mô Hình (`join`)
-- So sánh hiệu suất của tất cả mô hình
-- Phân tích độ chính xác và thời gian huấn luyện
-- Tự động chọn mô hình tốt nhất dựa trên độ chính xác
-- Biểu đồ so sánh trực quan với màu sắc thể hiện thời gian huấn luyện
-- Ghi log mô hình tốt nhất vào MLflow với signature và input example
+### 4. Model Training (`train_models`)
+- Train multiple classifiers [list here](https://github.com/hyperopt/hyperopt-sklearn#classifiers) in parallel
+- Optional hyperparameter tuning with [hyperopt-sklearn](https://github.com/hyperopt/hyperopt-sklearn)
+- Track training time for each model
+- Log all metrics and parameters to MLflow
+- Display detailed results in Metaflow cards
 
-## Các Tính Năng Chính
-- **Tối Ưu Siêu Tham Số Tự Động**: Sử dụng hyperopt-sklearn để điều chỉnh mô hình
-- **Huấn Luyện Song Song**: Tăng hiệu suất bằng huấn luyện đồng thời nhiều mô hình
-- **Theo Dõi Hiệu Suất**: Đo lường và so sánh cả độ chính xác và thời gian huấn luyện
-- **Biểu Đồ Tương Tác**: Cung cấp cái nhìn trực quan sinh động qua Metaflow cards
-- **Pipeline Có Thể Tái Sử Dụng**: Dữ liệu và mô hình được quản lý phiên bản rõ ràng
+### 5. Model Comparison (`join`)
+- Compare performance of all models
+- Analyze accuracy and training time
+- Automatically select best model based on accuracy
+- Visual comparison chart with color-coded training time
+- Log best model to MLflow with signature and input example
 
-## Công Nghệ Sử Dụng
+## Key Features
+
+- **Automatic Hyperparameter Optimization**: Uses hyperopt-sklearn for model tuning
+- **Parallel Model Training**: Improves efficiency by training multiple models concurrently
+- **Performance Tracking**: Measures both accuracy and training time
+- **Interactive Charts**: Intuitive visual insights via Metaflow cards
+- **Reusable Pipeline**: Data and models are version-controlled clearly
+
+## Technologies Used
 
 ### Metaflow
-- Quản lý và điều phối workflow  
-- Khả năng thực thi song song  
-- Quản lý tài nguyên và mở rộng quy mô  
-- Hỗ trợ hiển thị biểu đồ tương tác (cards)
+- Workflow orchestration
+- Parallel execution support
+- Resource management and scalability
+- Interactive chart support (cards)
 
 ### MLflow
-- Theo dõi thí nghiệm  
-- Quản lý mô hình  
-- Quản lý phiên bản dữ liệu  
-- Ghi log chỉ số và trực quan hóa
+- Experiment tracking
+- Model management
+- Data versioning
+- Metric logging and visualization
 
 ### Hyperopt-sklearn
-- Tự động lựa chọn mô hình và tối ưu siêu tham số
-- Tìm kiếm không gian tham số bằng thuật toán Bayesian (TPE), Random Search, Annealing, ...
-- Hỗ trợ nhiều thuật toán học máy trong scikit-learn
-- Tích hợp dễ dàng với pipeline huấn luyện và theo dõi thí nghiệm
+- Automated model selection and hyperparameter tuning
+- Supports Bayesian (TPE), Random Search, Annealing, etc.
+- Multiple scikit-learn algorithms supported
+- Seamless integration with training pipeline and experiment tracking
 
-## Cài Đặt
+## Setup
 
-### Thiết Lập Môi Trường
-1. Tạo môi trường ảo mới:
+### Environment Setup
+
+1. Create a virtual environment:
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Linux/Mac
+source .venv/bin/activate  # For Linux/Mac
 ```
 
-2. Cài đặt các thư viện cần thiết:
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Khởi động máy chủ MLflow: Mở một terminal riêng và chạy
+3. Start MLflow server (in a separate terminal)
 ```bash
 mlflow server --host 127.0.0.1 --port 5000
 ```
 
-## Chạy Pipeline
-Trong cùng thư mục của dự án.
-
-### Chạy Cơ Bản
+## Run Pipeline
+### Basic run
 ```bash
 python main.py run
 ```
 
-### Bật Tối Ưu Siêu Tham Số 
+### Enable Hyperparameter Optimization
 ```bash
 python main.py run --use_hyperopt true
 ```
-Lưu ý: Thời gian chạy sẽ lâu nếu dùng nhiều model/model train lâu (~ 20 phút cho tất cả).
+Note: Running with all models and tuning may take ~20 minutes.
 
-### Chỉ Định Đường Dẫn Dữ Liệu Tùy Chỉnh
+### Use Custom Data Directory
 ```bash
 python main.py run --data-dir /path/to/data
 ```
 
-## Xem Kết Quả
+## Viewing results
 
 ### Giao Diện MLflow
 ```bash
 mlflow ui
 ```
-Truy cập tại: http://localhost:5000
+Access at: http://localhost:5000
 
-### Giao Diện Metaflow
-Trong cùng thư mục của dự án, chạy trong terminal mới:
+### Metaflow Cards UI
+In project directory, run in new terminal:
 ```bash
 python main.py card server
 ```
-Truy cập tại: http://localhost:8324
+Access at: http://localhost:8324
 
-## Chạy Bằng Docker Compose
+## Docker Compose Execution
 
-### 1. Build và khởi động toàn bộ hệ thống
+### Build and Start Full System
 
-Trong thư mục dự án, chạy lệnh sau để build và khởi động các service (MLflow server, train pipeline, model serving):
+In the project directory, run:
 
 ```bash
 docker-compose up --build
 ```
 
-- Service `mlflow-server`: Chạy MLflow Tracking Server tại [http://localhost:5000](http://localhost:5000)
-- Service `train-pipeline`: Tự động huấn luyện và đăng ký mô hình tốt nhất vào MLflow Model Registry
-- Service `model-serving`: Tự động phục vụ mô hình tốt nhất qua REST API tại [http://localhost:5050/invocations](http://localhost:5050/invocations)
+- Service `mlflow-server`: MLflow Tracking Server at [http://localhost:5000](http://localhost:5000)
+- Service `train-pipeline`: Automatically trains and registers best model in MLflow Model Registry
+- Service `model-serving`: Serves best model via REST API at [http://localhost:5050/invocations](http://localhost:5050/invocations)
 
-### 2. Gửi yêu cầu dự đoán (inference)
+### 2. Send Inference Request
 
-Sau khi các container đã chạy xong, bạn có thể gửi yêu cầu dự đoán tới API phục vụ mô hình:
+Once containers are running, send a prediction request to the model API:
 
 ```bash
 curl -d '{"dataframe_split": {
@@ -154,35 +154,114 @@ curl -d '{"dataframe_split": {
 -H 'Content-Type: application/json' -X POST localhost:5050/invocations
 ```
 
-Kết quả server trả về sẽ có dạng tương ứng với một trong các nhãn dự đoán:
+Example response:
 
 ```json
 {"predictions": [3]}
 ```
 
-### 3. Dừng toàn bộ hệ thống
+### Stop All Services
 
-Nhấn `Ctrl+C` trong terminal đang chạy hoặc dùng lệnh:
+Press `Ctrl+C` in the running terminal or run:
 
 ```bash
 docker-compose down
 ```
 
-### Lưu ý
+### Notes
+- Ensure Docker and Docker Compose are installed.
+- First run may take time to build images and download data.
+- To view logs for a specific service:
 
-- Đảm bảo Docker và Docker Compose đã được cài đặt trên máy.
-- Lần chạy đầu tiên có thể mất thời gian để build image và tải dữ liệu.
-- Có thể kiểm tra logs của từng service bằng lệnh:
-  ```bash
-  docker-compose logs <service-name>
-  ```
-  Ví dụ: `docker-compose logs train-pipeline`
+```bash
+docker-compose logs <service-name>
+```
 
 ---
 
-## Ghi Chú
-- Hãy đảm bảo máy chủ MLflow đã được khởi động trước khi chạy pipeline  
-- Lần chạy đầu tiên sẽ tải bộ dữ liệu  
-- Tối ưu siêu tham số có thể mất thời gian lâu hơn  
-- Yêu cầu tối thiểu: 4GB RAM
+## Notes
+- Ensure MLflow server is running before executing the pipeline
+- First-time runs will download the dataset
+- Hyperparameter tuning may significantly increase run time
+
+# Monitoring Stack
+
+## Components
+
+- **Prometheus**: Metrics collection and storage (http://localhost:9090)
+- **Grafana**: Metrics visualization (http://localhost:3000)
+- **AlertManager**: Alert handling (http://localhost:9093)
+- **Node Exporter**: System metrics collection
+- **cAdvisor**: Container metrics collection
+- **FastAPI Instrumentator**: API metrics collection
+
+## Metrics Available
+
+### System Metrics
+- CPU usage
+- Memory usage
+- Disk I/O
+- Network I/O
+- Container metrics
+
+### API Metrics
+- Request rate
+- Latency
+- Error rates
+- Status codes
+
+### ML Model Metrics
+- Inference latency
+- Prediction confidence scores
+- Model error rates
+
+## Accessing Dashboards
+
+1. **Grafana** (http://localhost:3000):
+   - Default credentials: admin/admin
+   - Pre-configured dashboards:
+     - ML Model Metrics
+     - System Metrics
+     - API Metrics
+
+2. **Prometheus** (http://localhost:9090):
+   - Query metrics directly
+   - View targets and alerts
+
+3. **AlertManager** (http://localhost:9093):
+   - View and manage alerts
+   - Configure notifications
+
+## Load Testing
+
+Use the provided load testing script to generate traffic and test the monitoring stack:
+
+```bash
+# Run basic load test
+python load_test.py
+
+# Run with custom parameters
+python load_test.py --duration 600 --workers 20 --rps 10
+
+# Generate some errors for testing alerts
+python load_test.py --inject-errors
+```
+
+## Alerts
+
+The following alerts are configured:
+
+1. **High Error Rate**
+   - Triggers when error rate exceeds 50%
+   - 5-minute evaluation window
+
+2. **Low Model Confidence**
+   - Triggers when average confidence falls below 0.6
+   - 5-minute evaluation window
+
+3. **High Latency**
+   - Triggers when average prediction time exceeds 1 second
+   - 5-minute evaluation window
+
+Alerts are logged to `/alerts/alerts.log` and can be configured to send to Slack or email.
 

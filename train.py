@@ -4,22 +4,22 @@ import os
 from datetime import datetime
 
 # Sklearn imports
-from sklearn.model_selection import train_test_split, cross_val_score, KFold
+from sklearn.model_selection import train_test_split
+# from sklearn.model_selection import cross_val_score, KFold
 from sklearn.metrics import accuracy_score
 
 # Sklearn models
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.ensemble import GradientBoostingClassifier
+# from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import SGDClassifier
 # from sklearn.neural_network import MLPClassifier
-from sklearn.svm import SVC, LinearSVC
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import AdaBoostClassifier
-from sklearn.ensemble import ExtraTreesClassifier
+# from sklearn.svm import SVC, LinearSVC
+# from sklearn.ensemble import RandomForestClassifier
+# from sklearn.ensemble import AdaBoostClassifier
+# from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.ensemble import BaggingClassifier
-from xgboost import XGBClassifier
 # from sklearn.ensemble import VotingClassifier
 
 
@@ -38,17 +38,6 @@ import matplotlib.pyplot as plt
 plt.style.use("ggplot")  #using style ggplot
 from metaflow.cards import VegaChart
 from metaflow.cards import Markdown
-
-@pypi_base(
-    python="3.13.3",
-    packages={
-        "hyperopt-sklearn": "1.1.1",
-        "matplotlib": " 3.10.1",
-        "mlflow": "2.22.0",
-        "xgboost": "3.0.0",
-        "metaflow": "2.15.10"
-    }
-)
 
 class MLFlowPipeline(FlowSpec):
     """MLflow pipeline for training and evaluating wine quality models.
@@ -105,12 +94,14 @@ class MLFlowPipeline(FlowSpec):
         self.mlflow_enable_system_metrics_logging = os.getenv("MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING")
         
         if self.mlflow_enable_system_metrics_logging:
-            # For example, if you set sample interval to 2 seconds and samples before logging to 3, 
+            # For example, if you set sample interval to 2 seconds 
+            # and samples before logging to 3, 
             # then system metrics will be collected every 2 seconds, 
             # then after 3 samples are collected (2 * 3 = 6s), 
             # we aggregate the metrics and log to MLflow server.
             
-            # For some reason, mlflow doesn't log any model's system metrics that run less than 10 seconds even when manually set below
+            # For some reason, mlflow doesn't log any model's system metrics
+            # that run less than 10 seconds even when manually set below
             
             mlflow.set_system_metrics_sampling_interval(1)
             mlflow.set_system_metrics_samples_before_logging(1)
@@ -135,7 +126,6 @@ class MLFlowPipeline(FlowSpec):
                 # 'et': ExtraTreesClassifier,
                 'bag': BaggingClassifier,
                 'knn': KNeighborsClassifier,
-                # 'xgb': XGBClassifier,
                 'gnb': GaussianNB,
                 'sgd': SGDClassifier,
                 # 'svc': SVC,
@@ -461,16 +451,6 @@ class MLFlowPipeline(FlowSpec):
                 'hp_model': lambda: k_neighbors_classifier('knn_classifier'),
                 'default_params': {'n_neighbors': 5, 'weights': 'uniform'}
             },
-            # # Training Time: 693.22 seconds
-            # 'xgb': {
-            #     'hp_model': lambda: xgboost_classification('xgb_classifier'),
-            #     'default_params': {
-            #         'n_estimators': 100,
-            #         'learning_rate': 0.1,
-            #         'max_depth': 3,
-            #         'gamma': 0
-            #     }
-            # },
             # Training Time: 4.51 seconds
             'gnb': {
                 'hp_model': lambda: gaussian_nb('gnb_classifier'),
@@ -784,7 +764,6 @@ class MLFlowPipeline(FlowSpec):
     #         )
 
     #     self.next(self.end)
-
 
     @card    
     @step
