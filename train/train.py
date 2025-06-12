@@ -8,36 +8,22 @@ from sklearn.model_selection import train_test_split
 # from sklearn.model_selection import cross_val_score, KFold
 from sklearn.metrics import accuracy_score
 
-# Sklearn models
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.neighbors import KNeighborsClassifier
-# from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.linear_model import SGDClassifier
-# from sklearn.neural_network import MLPClassifier
-# from sklearn.svm import SVC, LinearSVC
-# from sklearn.ensemble import RandomForestClassifier
-# from sklearn.ensemble import AdaBoostClassifier
-# from sklearn.ensemble import ExtraTreesClassifier
-from sklearn.ensemble import BaggingClassifier
-# from sklearn.ensemble import VotingClassifier
+# Import model configurations
+from model_configs import MODEL_CONFIGS
 
-
-# Sklearn hyperopt
-from hpsklearn import *
-# from hyperopt import hp, STATUS_OK, Trials, fmin
-from hyperopt import tpe
+# Optuna imports
+import optuna
 
 # MLflow
 import mlflow
 from mlflow.models import infer_signature
-from mlflow.data.pandas_dataset import PandasDataset
 
 # For drawing plot
 import matplotlib.pyplot as plt
 plt.style.use("ggplot")  #using style ggplot
 from metaflow.cards import VegaChart
 from metaflow.cards import Markdown
+
 
 class MLFlowPipeline(FlowSpec):
     """MLflow pipeline for training and evaluating wine quality models.
@@ -68,6 +54,13 @@ class MLFlowPipeline(FlowSpec):
         type=bool,
         default=False,
         help="Whether to use hyperparameter optimization or default parameters.",
+    )
+    
+    N_TRIALS = Parameter(
+        "n_trials",
+        type=int,
+        default=30,
+        help="Number of trials for hyperparameter optimization.",
     )
     
     @environment(
@@ -118,21 +111,12 @@ class MLFlowPipeline(FlowSpec):
 
         # Define model configurations
         self.model_configs = [
-            {'name': model_name, 'model': model_class} 
-            for model_name, model_class in {
-                'dt': DecisionTreeClassifier,
-                # 'rf': RandomForestClassifier,
-                # 'ada': AdaBoostClassifier,
-                # 'et': ExtraTreesClassifier,
-                'bag': BaggingClassifier,
-                'knn': KNeighborsClassifier,
-                'gnb': GaussianNB,
-                'sgd': SGDClassifier,
-                # 'svc': SVC,
-                # 'lsvc': LinearSVC,
-                # 'gb': GradientBoostingClassifier,
-                # 'mlp': MLPClassifier,
-            }.items()
+            {
+                'name': model_name,
+                'model': config['model'],
+                'hyperparameters': config['hyperparameters']
+            }
+            for model_name, config in MODEL_CONFIGS.items()
         ]
 
         self.next(self.load_dataset)
@@ -404,199 +388,108 @@ class MLFlowPipeline(FlowSpec):
     @step
     def train_models(self):
         '''
-        Train models using either HyperoptEstimator or default scikit-learn models.
+        Train models using Optuna for hyperparameter optimization.
         '''
         import time
+        from optuna_objectives import create_objective
+        
         self.trained_models = []
         model_config = self.input
         model_name = model_config['name']
 
-        # Add label encoding for hyperopt
+        # Add label encoding
         from sklearn.preprocessing import LabelEncoder
         label_encoder = LabelEncoder()
         y_train_encoded = label_encoder.fit_transform(self.y_train)
         y_val_encoded = label_encoder.transform(self.y_val)
 
-        # Map model names to their hpsklearn and default configurations
-        model_mappings = {
-            # Training Time: 8.49 seconds
-            'dt': {
-                'hp_model': lambda: decision_tree_classifier('dt_classifier'),
-                'criterion': 'log_loss',
-                'default_params': {'max_depth': 5, 'min_samples_split': 2, 'min_samples_leaf': 1}
-            },
-            # # Training Time: 425.55 seconds
-            # 'rf': {
-            #     'hp_model': lambda: random_forest_classifier('rf_classifier'),
-            #     'criterion': 'log_loss',
-            #     'default_params': {'n_estimators': 100, 'max_depth': 10, 'min_samples_split': 2}
-            # },
-            # # Training Time: 111.14 seconds
-            # 'ada': {
-            #     'hp_model': lambda: ada_boost_classifier('ada_classifier'),
-            #     'default_params': {'n_estimators': 50, 'learning_rate': 1.0}
-            # },
-            # # Training Time: 178.22 seconds
-            # 'et': {
-            #     'hp_model': lambda: extra_trees_classifier('et_classifier'),
-            #     'default_params': {'n_estimators': 100, 'max_depth': 10}
-            # },
-            # Training Time: 41.07 seconds
-            'bag': {
-                'hp_model': lambda: bagging_classifier('bag_classifier'),
-                'default_params': {'n_estimators': 10}
-            },
-            # Training Time: 33.31 seconds
-            'knn': {
-                'hp_model': lambda: k_neighbors_classifier('knn_classifier'),
-                'default_params': {'n_neighbors': 5, 'weights': 'uniform'}
-            },
-            # Training Time: 4.51 seconds
-            'gnb': {
-                'hp_model': lambda: gaussian_nb('gnb_classifier'),
-                'default_params': {}
-            },
-            # Training Time: 21.67 seconds
-            'sgd': {
-                'hp_model': lambda: sgd_classifier('sgd_classifier'),
-                'default_params': {'loss': 'hinge', 'penalty': 'l2', 'alpha': 0.0001}
-            },
-            # # Training Time: 909.88 seconds
-            # 'svc': {
-            #     'hp_model': lambda: svc('svc_classifier'),
-            #     'default_params': {'C': 1.0, 'kernel': 'rbf', 'gamma': 'scale', 'probability': True}
-            # },
-            # # Training Time: 260.15 seconds
-            # 'lsvc': {
-            #     'hp_model': lambda: linear_svc('lsvc_classifier'),
-            #     'default_params': {'C': 1.0, 'loss': 'squared_hinge'}
-            # },
-            # # Buggy models
-            # https://github.com/hyperopt/hyperopt-sklearn/issues/141#issuecomment-548502709
-            # 'gb': {
-            #     'hp_model': lambda: gradient_boosting_classifier('gb_classifier'),
-            #     'criterion': 'log_loss',
-            #     'default_params': {'n_estimators': 100, 'learning_rate': 0.1, 'max_depth': 3}
-            # },
-            # 'mlp': {
-            #     'hp_model': lambda: mlp_classifier('mlp_classifier'),
-            #     'default_params': {'hidden_layer_sizes': (100,), 'activation': 'relu'}
-            # },
-        }
-
-        with mlflow.start_run(run_name=f"model_{model_name}") as run:
-            try:
-                start_time = time.time()
+        try:
+            start_time = time.time()
+            
+            if self.USE_HYPEROPT:
+                print(f"[{model_name}] Using Optuna optimization...")
                 
-                if self.USE_HYPEROPT and model_name in model_mappings:
-                    print(f"[{model_name}] Using HyperoptEstimator...")
-                    estimator = HyperoptEstimator(
-                        classifier=model_mappings[model_name]['hp_model'](),
-                        preprocessing=any_preprocessing('pre'),
-                        algo=tpe.suggest,
-                        max_evals=50,
-                        trial_timeout=300,
-                        seed=42
-                    )
-                    # Use encoded labels for training
-                    model = estimator
-                    
-                    model.fit(self.X_train, y_train_encoded)
-                    y_pred_encoded = model.predict(self.X_val)
-                    
-                    # Transform predictions back to original labels
-                    y_pred = label_encoder.inverse_transform(y_pred_encoded)
-                    
-                    best_model_config = estimator.best_model()
-                    
-                    # # Log learner parameters
-                    # learner = best_model_config.get('learner', {})
-                    # if learner:
-                    #     learner_params = learner.get_params()
-                    #     mlflow.log_params({
-                    #         f"learner_{key}": value 
-                    #         for key, value in learner_params.items()
-                    #     })
-                    
-                    # # Log preprocessor parameters
-                    # preprocs = best_model_config.get('preprocs', ())
-                    # for i, preproc in enumerate(preprocs):
-                    #     preproc_params = preproc.get_params()
-                    #     mlflow.log_params({
-                    #         f"preproc_{i}_{key}": value 
-                    #         for key, value in preproc_params.items()
-                    #     })
-                    
-                    # # Log any extra preprocessor parameters
-                    # ex_preprocs = best_model_config.get('ex_preprocs', ())
-                    # for i, ex_preproc in enumerate(ex_preprocs):
-                    #     ex_preproc_params = ex_preproc.get_params()
-                    #     mlflow.log_params({
-                    #         f"ex_preproc_{i}_{key}": value 
-                    #         for key, value in ex_preproc_params.items()
-                    #     })
-                    
-                    # Log best model configuration to MLflow
-                    mlflow.log_params({
-                        "best_model_config": str(best_model_config),
-                        # "best_model_learner": str(best_model_config.get('learner', '')),
-                        # "best_model_preprocessors": str(best_model_config.get('preprocs', '')),
-                    })
-                    
-                    current.card.append(Markdown(
-                        f"### Best Model Configuration\n" +
-                        f"```python\n{best_model_config}\n```\n"
-                    ))
+                # Create Optuna study
+                study = optuna.create_study(
+                    direction="maximize",
+                    study_name=f"{model_name}_optimization"
+                )
+                
+                # Get hyperparameter space for this model
+                hyperparameters = model_config.get('hyperparameters', {})
+                
+                # Create objective function with hyperparameter space
+                objective = create_objective(
+                    model_config['model'],
+                    self.X_train,
+                    y_train_encoded,
+                    hyperparameters
+                )
+                
+                # Run optimization outside of MLflow run
+                study.optimize(objective, n_trials=self.N_TRIALS, n_jobs=-1)
+                
+                # Get best parameters
+                best_params = study.best_params
+                
+                # Train final model with best parameters
+                model = model_config['model'](**best_params)
+                model.fit(self.X_train, y_train_encoded)
+                
+            else:
+                print(f"[{model_name}] Using default parameters...")
+                model = model_config['model']()
+                model.fit(self.X_train, y_train_encoded)
+                best_params = {}
 
-                else:
-                    print(f"[{model_name}] Using default parameters...")
-                    params = model_mappings[model_name]['default_params']
-                    model = model_config['model'](**params)
-                    
-                    model.fit(self.X_train, y_train_encoded)
-                    y_pred_encoded = model.predict(self.X_val)
-                    
-                    y_pred = label_encoder.inverse_transform(y_pred_encoded)
+            # Make predictions
+            y_pred_encoded = model.predict(self.X_val)
+            y_pred = label_encoder.inverse_transform(y_pred_encoded)
 
-                # Calculate training time
-                training_time = time.time() - start_time
-                print(f"[{model_name}] Training completed in {training_time:.2f} seconds")
+            # Calculate metrics
+            training_time = time.time() - start_time
+            val_acc = accuracy_score(self.y_val, y_pred)
 
-                val_acc = accuracy_score(self.y_val, y_pred)
-
-                # Log metrics including training time
+            # Log everything to MLflow in a single run
+            with mlflow.start_run(run_name=f"model_{model_name}") as run:
+                # Log parameters
                 mlflow.log_params({
-                    "method": "HyperoptEstimator" if self.USE_HYPEROPT else "default_parameters",
-                    **model_mappings[model_name]['default_params']
+                    "model_type": model_name,
+                    "optimization_method": "optuna" if self.USE_HYPEROPT else "default",
+                    **best_params
                 })
-                
-                if self.USE_HYPEROPT:
-                    mlflow.log_params({
-                        "label_mapping": str(dict(zip(
-                            label_encoder.classes_,
-                            label_encoder.transform(label_encoder.classes_)
-                        )))
-                    })
-                    
+
+                # Log metrics
                 mlflow.log_metrics({
                     "validation_accuracy": val_acc,
-                    "training_time_seconds": training_time
+                    "training_time_seconds": training_time,
+                    "best_trial_value": study.best_value if self.USE_HYPEROPT else val_acc
                 })
 
-                # Add to card with timing information
-                current.card.append(Markdown(
-                    f"## Model: {model_name}\n" +
-                    f"* Method: {'HyperoptEstimator' if self.USE_HYPEROPT else 'Default Parameters'}\n" +
-                    f"* Default Parameters: {model_mappings[model_name]['default_params']}\n" +
-                    f"* Training Time: {training_time:.2f} seconds\n" +
-                    f"* Validation Accuracy: {val_acc:.4f}\n"
-                ))
+                # Log Optuna study if used
+                if self.USE_HYPEROPT:
+                    # Log the optimization history
+                    history = {
+                        "number": [t.number for t in study.trials],
+                        "value": [t.value for t in study.trials],
+                        "params": [t.params for t in study.trials]
+                    }
+                    mlflow.log_dict(history, "optimization_history.json")
 
-                self.trained_models.append((model_name, model, val_acc, training_time))
+            # Add to card
+            current.card.append(Markdown(
+                f"## Model: {model_name}\n" +
+                f"* Method: {'Optuna optimization' if self.USE_HYPEROPT else 'Default Parameters'}\n" +
+                (f"* Best Parameters: {best_params}\n" if self.USE_HYPEROPT else "") +
+                f"* Training Time: {training_time:.2f} seconds\n" +
+                f"* Validation Accuracy: {val_acc:.4f}\n"
+            ))
 
-            except Exception as e:
-                print(f"[{model_name}] Error in training: {e}")
-                raise
+            self.trained_models.append((model_name, model, val_acc, training_time))
+
+        except Exception as e:
+            print(f"[{model_name}] Error in training: {e}")
+            raise
 
         self.next(self.join)
 

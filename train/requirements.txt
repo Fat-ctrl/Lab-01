@@ -1,0 +1,8 @@
+matplotlib==3.10.3
+metaflow==2.15.15
+mlflow-skinny==2.22.1
+numpy==2.3.0
+optuna==4.3.0
+pandas==2.2.3
+plotly==6.1.2
+scikit-learn==1.7.0

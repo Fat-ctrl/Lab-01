@@ -20,7 +20,7 @@
     },
     {
       "title": "CPU Usage",
-      "type": "gauge",
+      "type": "graph",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -31,22 +31,38 @@
       "targets": [
         {
           "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
-          "legendFormat": "CPU %"
+          "legendFormat": "CPU Usage %"
         }
       ],
-      "options": {
-        "maxValue": 100,
-        "minValue": 0,
-        "thresholds": [
-          { "color": "green", "value": null },
-          { "color": "yellow", "value": 70 },
-          { "color": "red", "value": 85 }
-        ]
+      "yaxes": [
+        {
+          "format": "percent",
+          "label": "CPU Usage",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "format": "short",
+          "show": false
+        }
+      ],
+      "alert": {
+        "name": "High CPU Usage",
+        "conditions": [
+          {
+            "type": "query",
+            "evaluator": {
+              "type": "gt",
+              "params": [85]
+            }
+          }
+        ],
+        "frequency": "1m"
       }
     },
     {
       "title": "Memory Usage",
-      "type": "gauge",
+      "type": "graph",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -57,9 +73,34 @@
       "targets": [
         {
           "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100",
-          "legendFormat": "Memory %"
+          "legendFormat": "Memory Usage %"
         }
-      ]
+      ],
+      "yaxes": [
+        {
+          "format": "percent",
+          "label": "Memory Usage",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "format": "short",
+          "show": false
+        }
+      ],
+      "alert": {
+        "name": "High Memory Usage",
+        "conditions": [
+          {
+            "type": "query",
+            "evaluator": {
+              "type": "gt",
+              "params": [85]
+            }
+          }
+        ],
+        "frequency": "1m"
+      }
     },
     {
       "title": "Disk I/O",
@@ -116,7 +157,7 @@
     },
     {
       "title": "GPU Utilization",
-      "type": "gauge",
+      "type": "graph",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -130,19 +171,35 @@
           "legendFormat": "GPU {{gpu}} Usage %"
         }
       ],
-      "options": {
-        "maxValue": 100,
-        "minValue": 0,
-        "thresholds": [
-          { "color": "green", "value": null },
-          { "color": "yellow", "value": 80 },
-          { "color": "red", "value": 90 }
-        ]
+      "yaxes": [
+        {
+          "format": "percent",
+          "label": "GPU Usage",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "format": "short",
+          "show": false
+        }
+      ],
+      "alert": {
+        "name": "High GPU Usage",
+        "conditions": [
+          {
+            "type": "query",
+            "evaluator": {
+              "type": "gt",
+              "params": [90]
+            }
+          }
+        ],
+        "frequency": "1m"
       }
     },
     {
       "title": "GPU Memory Usage",
-      "type": "gauge",
+      "type": "graph",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -156,14 +213,30 @@
           "legendFormat": "GPU {{gpu}} Memory %"
         }
       ],
-      "options": {
-        "maxValue": 100,
-        "minValue": 0,
-        "thresholds": [
-          { "color": "green", "value": null },
-          { "color": "yellow", "value": 80 },
-          { "color": "red", "value": 90 }
-        ]
+      "yaxes": [
+        {
+          "format": "percent",
+          "label": "Memory Usage",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "format": "short",
+          "show": false
+        }
+      ],
+      "alert": {
+        "name": "High GPU Memory Usage",
+        "conditions": [
+          {
+            "type": "query",
+            "evaluator": {
+              "type": "gt",
+              "params": [90]
+            }
+          }
+        ],
+        "frequency": "1m"
       }
     },
     {
@@ -209,6 +282,10 @@
       }
     }
   ],
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
   "refresh": "5s",
   "schemaVersion": 27,
   "style": "dark",

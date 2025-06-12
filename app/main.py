@@ -1,8 +1,10 @@
 import os
 import time
 import logging
+import logging.config
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException, Response, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import pandas as pd
 import numpy as np
@@ -11,11 +13,9 @@ from prometheus_client import Histogram, Counter, Gauge, Summary, generate_lates
 from prometheus_fastapi_instrumentator import Instrumentator
 
 # --- Logging setup ---
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logging.config.fileConfig('app/logging.conf')
+logger = logging.getLogger('app')
+syslog_logger = logging.getLogger('syslog')
 
 # --- Singleton Metrics class ---
 class Metrics:
@@ -65,6 +65,20 @@ app = FastAPI(title="Wine Quality Prediction Service")
 instrumentator = Instrumentator()
 instrumentator.instrument(app).expose(app, endpoint="/metrics", include_in_schema=True)
 
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Application starting up")
+    syslog_logger.info("ML service starting up")
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global exception: {str(exc)}", exc_info=True)
+    syslog_logger.error(f"Application error: {str(exc)}")
+    return JSONResponse(
+        status_code=500,
+        content={"message": "Internal server error"}
+    )
+
 # --- Middleware to auto-log HTTP requests ---
 @app.middleware("http")
 async def log_metrics_middleware(request: Request, call_next):
@@ -112,14 +126,29 @@ async def predict(request: PredictionRequest):
         with metrics.prediction_time.time():
             predictions = model.predict(df)
 
-        # Confidence score (if available)
-        # if hasattr(model, 'predict_proba'):
-        proba = model.predict_proba(df)
-        confidence = float(np.max(proba, axis=1).mean())
-        logger.info(f"Predicted confidence score: {confidence:.4f}")
-        # else:
-        #     confidence = 0
-        #     logger.warning("Model does not support predict_proba; confidence set to 0")
+        # Confidence score calculation
+        try:
+            if hasattr(model, 'predict_proba'):
+                proba = model.predict_proba(df)
+                confidence = float(np.max(proba, axis=1).mean())
+            elif hasattr(model, 'decision_function'):
+                # For models like SVM that use decision_function instead
+                decision_scores = model.decision_function(df)
+                if decision_scores.ndim > 1:
+                    # Multi-class case
+                    confidence = float(np.max(softmax(decision_scores, axis=1), axis=1).mean())
+                else:
+                    # Binary case
+                    confidence = float(np.mean(np.abs(decision_scores)))
+            else:
+                # Fallback for models without probability estimates
+                confidence = float(np.mean([1.0 if pred == true_label else 0.0 
+                                         for pred, true_label in zip(predictions, df['quality'])]))
+            
+            logger.info(f"Predicted confidence score: {confidence:.4f}")
+        except Exception as e:
+            logger.warning(f"Error calculating confidence score: {str(e)}")
+            confidence = 0.0
 
         metrics.confidence_score.set(confidence)
         metrics.predictions_total.labels(result="success").inc()
@@ -127,12 +156,22 @@ async def predict(request: PredictionRequest):
         elapsed = time.time() - start_time
         metrics.model_response_time.observe(elapsed)
 
-        return {"predictions": predictions.tolist()}
+        return {
+            "predictions": predictions.tolist(),
+            "confidence": confidence
+        }
 
     except Exception as e:
         metrics.prediction_errors.inc()
         logger.error(f"Prediction error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Add softmax function for multi-class confidence calculation
+def softmax(x, axis=None):
+    """Compute softmax values for each set of scores in x."""
+    x_max = np.max(x, axis=axis, keepdims=True)
+    exp_x = np.exp(x - x_max)
+    return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
 
 # --- Health & metrics endpoints ---
 @app.get("/health")

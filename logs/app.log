@@ -1,0 +1,12 @@
+{"asctime": "2025-06-11 23:14:42,987", "name": "app", "levelname": "INFO", "message": "Loading model from models:/sk-learn-best-model/latest", "hostname": null, "path": null}
+{"asctime": "2025-06-11 23:16:13,527", "name": "app", "levelname": "INFO", "message": "Loading model from models:/sk-learn-best-model/latest", "hostname": null, "path": null}
+{"asctime": "2025-06-11 23:16:14,336", "name": "app", "levelname": "INFO", "message": "Application starting up", "hostname": null, "path": null}
+{"asctime": "2025-06-11 23:17:00,687", "name": "app", "levelname": "INFO", "message": "Predicted confidence score: 0.8372", "hostname": null, "path": null}
+{"asctime": "2025-06-12 10:49:08,028", "name": "app", "levelname": "INFO", "message": "Loading model from models:/sk-learn-best-model/latest", "hostname": null, "path": null}
+{"asctime": "2025-06-12 10:49:08,971", "name": "app", "levelname": "INFO", "message": "Application starting up", "hostname": null, "path": null}
+{"asctime": "2025-06-12 10:49:26,358", "name": "app", "levelname": "INFO", "message": "Predicted confidence score: 0.9524", "hostname": null, "path": null}
+{"asctime": "2025-06-12 10:55:28,708", "name": "app", "levelname": "INFO", "message": "Loading model from models:/sk-learn-best-model/latest", "hostname": null, "path": null}
+{"asctime": "2025-06-12 10:55:29,463", "name": "app", "levelname": "INFO", "message": "Application starting up", "hostname": null, "path": null}
+{"asctime": "2025-06-12 10:55:42,962", "name": "app", "levelname": "INFO", "message": "Predicted confidence score: 0.9524", "hostname": null, "path": null}
+{"asctime": "2025-06-12 11:59:26,127", "name": "app", "levelname": "INFO", "message": "Loading model from models:/sk-learn-best-model/latest", "hostname": null, "path": null}
+{"asctime": "2025-06-12 11:59:28,067", "name": "app", "levelname": "INFO", "message": "Application starting up", "hostname": null, "path": null}

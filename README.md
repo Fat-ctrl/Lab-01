@@ -10,6 +10,7 @@
 
 - Watch the main flow demo video [here](https://drive.google.com/file/d/1fqHUXSFL31XyWmoZeUkEIUw4oRfo9X3y/view)  
 - Watch the docker-compose demo video [here](https://drive.google.com/file/d/109bz4EcAOxRBOUyqWTE7Xr9S-T_qwIRp/view)
+- Watch the logging and monitoring demo video [here](https://drive.google.com/file/d/1n4s0blRqfUe_ApvbJXDdih-UnfQlgtt7/view)
 
 ## Overview
 
@@ -36,8 +37,7 @@ This project implements an end-to-end machine learning pipeline to predict wine 
 - Save split data for parallel model training
 
 ### 4. Model Training (`train_models`)
-- Train multiple classifiers [list here](https://github.com/hyperopt/hyperopt-sklearn#classifiers) in parallel
-- Optional hyperparameter tuning with [hyperopt-sklearn](https://github.com/hyperopt/hyperopt-sklearn)
+- Optional hyperparameter tuning with [Optuna](https://github.com/optuna/optuna)
 - Track training time for each model
 - Log all metrics and parameters to MLflow
 - Display detailed results in Metaflow cards
@@ -51,7 +51,7 @@ This project implements an end-to-end machine learning pipeline to predict wine 
 
 ## Key Features
 
-- **Automatic Hyperparameter Optimization**: Uses hyperopt-sklearn for model tuning
+- **Automatic Hyperparameter Optimization**: Uses Optuna for model tuning
 - **Parallel Model Training**: Improves efficiency by training multiple models concurrently
 - **Performance Tracking**: Measures both accuracy and training time
 - **Interactive Charts**: Intuitive visual insights via Metaflow cards
@@ -71,7 +71,7 @@ This project implements an end-to-end machine learning pipeline to predict wine 
 - Data versioning
 - Metric logging and visualization
 
-### Hyperopt-sklearn
+### Optuna
 - Automated model selection and hyperparameter tuning
 - Supports Bayesian (TPE), Random Search, Annealing, etc.
 - Multiple scikit-learn algorithms supported
@@ -116,7 +116,7 @@ python main.py run --data-dir /path/to/data
 
 ## Viewing results
 
-### Giao Diện MLflow
+### MLflow UI
 ```bash
 mlflow ui
 ```
@@ -263,5 +263,14 @@ The following alerts are configured:
    - Triggers when average prediction time exceeds 1 second
    - 5-minute evaluation window
 
-Alerts are logged to `/alerts/alerts.log` and can be configured to send to Slack or email.
+4. **Down Instance**
+   - Triggers when a service in the stack is down for a period of time
+   - 3-minute evaluation window
 
+Alerts can be configured to send to Slack or email.
+
+## Alerts Testing
+Use the provided alerts testing script to simulate faulty senarios:
+```bash
+python test_alerts.py
+```

@@ -38,10 +38,51 @@ groups:
       description: Memory usage is above 80%
 
   - alert: HighLatency
-    expr: rate(model_prediction_seconds_sum[5m]) / rate(model_prediction_seconds_count[5m]) > 1
-    for: 5m
+    expr: rate(model_prediction_seconds_sum[5m]) / rate(model_prediction_seconds_count[5m]) > 0.5
+    for: 2m
     labels:
       severity: warning
     annotations:
       summary: High prediction latency
-      description: Average prediction time is above 1 second
+      description: Average prediction time is above 500ms over 2 minutes
+      
+- name: AllInstances
+  rules:
+  # - alert: InstanceDown
+  #   expr: up == 0
+  #   for: 2m
+  #   annotations:
+  #     title: 'Instance {{ $labels.instance }} down'
+  #     description: '{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 2 minute.'
+  #   labels:
+  #     severity: 'critical'
+
+  - alert: GPUMetricsDown
+    expr: up{job="gpu_metrics"} == 0
+    for: 2m
+    annotations:
+      title: 'GPU Metrics Instance {{ $labels.instance }} down'
+      description: 'GPU metrics endpoint {{ $labels.instance }} of job {{ $labels.job }} has been down for more than 2 minute.'
+    labels:
+      severity: 'critical'
+      service: 'gpu'
+
+  - alert: ModelServingDown
+    expr: up{job="model-serving"} == 0
+    for: 3m
+    annotations:
+      title: 'Model Serving Instance {{ $labels.instance }} down'
+      description: 'Model serving endpoint {{ $labels.instance }} of job {{ $labels.job }} has been down for more than 3 minute.'
+    labels:
+      severity: 'critical'
+      service: 'model'
+
+  - alert: FastAPIDown
+    expr: up{job="fastapi"} == 0
+    for: 3m
+    annotations:
+      title: 'FastAPI Instance {{ $labels.instance }} down'
+      description: 'FastAPI endpoint {{ $labels.instance }} of job {{ $labels.job }} has been down for more than 3 minute.'
+    labels:
+      severity: 'critical'
+      service: 'api'

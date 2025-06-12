@@ -1,25 +1,19 @@
 FROM python:3.12.3-slim
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc wget git
-
+# Set working directory inside the container
 WORKDIR /app
 
-# Copy requirements (if you have one)
-COPY requirements.txt .
+# Copy your training code into the container
+COPY train/ /app/train/
 
-# Install base Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies
+RUN pip install --no-cache-dir -r train/requirements.txt
 
-# Copy the main code
-COPY train.py .
+# Clean up to reduce image size (apt cache isn't used here, but just in case)
+RUN rm -rf /root/.cache /var/lib/apt/lists/*
 
-# Reudce image size
-RUN rm -rf /var/lib/apt/lists/*
-
-# Set environment variables (optional, can also be set in docker-compose)
+# Set environment variable (optional)
 ENV MLFLOW_TRACKING_URI=http://mlflow-server:5000
 
 # Default command to run the training pipeline
-CMD ["python", "train.py", "--no-pylint", "run", "--use_hyperopt", "true"]
+CMD ["python", "train/train.py", "--no-pylint", "run", "--use_hyperopt", "true"]
